@@ -1,8 +1,8 @@
 #pragma once
 
 struct Token {
-    enum class Kind {
-        IDENTIFIER,
+    enum class Kind : int {
+        IDENTIFIER = 0,
 
         NUMBER,
 
@@ -39,6 +39,7 @@ struct Token {
     Kind kind;
     int start;
     int length;
+    int line;
 };
 
 auto name(Token::Kind kind) -> const char*;

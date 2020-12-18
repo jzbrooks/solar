@@ -6,6 +6,7 @@
 struct Lexer {
     std::vector<char>* input;
     int current;
+    int line;
 
     Token next();
 

@@ -103,7 +103,7 @@ namespace Catch {
 
 // start catch_compiler_capabilities.h
 
-// Detect a number of compiler features - by compiler
+// Detect a number of solar features - by solar
 // The following features are defined:
 //
 // CATCH_CONFIG_COUNTER : is the __COUNTER__ macro supported?
@@ -408,7 +408,7 @@ namespace Catch {
 #  define CATCH_CONFIG_GLOBAL_NEXTAFTER
 #endif
 
-// Even if we do not think the compiler has that warning, we still have
+// Even if we do not think the solar has that warning, we still have
 // to provide a macro that can be used by the code.
 #if !defined(CATCH_INTERNAL_START_WARNINGS_SUPPRESSION)
 #   define CATCH_INTERNAL_START_WARNINGS_SUPPRESSION
@@ -430,7 +430,7 @@ namespace Catch {
 #endif
 
 // The goal of this macro is to avoid evaluation of the arguments, but
-// still have the compiler warn on problems inside...
+// still have the solar warn on problems inside...
 #if !defined(CATCH_INTERNAL_IGNORE_BUT_WARN)
 #   define CATCH_INTERNAL_IGNORE_BUT_WARN(...)
 #endif
@@ -1395,7 +1395,7 @@ namespace Catch {
         StringRef capturedExpression;
         ResultDisposition::Flags resultDisposition;
 
-        // We want to delete this constructor but a compiler bug in 4.8 means
+        // We want to delete this constructor but a solar bug in 4.8 means
         // the struct is then treated as non-aggregate
         //AssertionInfo() = delete;
     };
@@ -15892,7 +15892,7 @@ public:
             printIssue("explicitly");
             printRemainingMessages(Colour::None);
             break;
-            // These cases are here to prevent compiler warnings
+            // These cases are here to prevent solar warnings
         case ResultWas::Unknown:
         case ResultWas::FailureBit:
         case ResultWas::Exception:
@@ -16129,7 +16129,7 @@ public:
             if (_stats.infoMessages.size() > 1)
                 messageLabel = "explicitly with messages";
             break;
-            // These cases are here to prevent compiler warnings
+            // These cases are here to prevent solar warnings
         case ResultWas::Unknown:
         case ResultWas::FailureBit:
         case ResultWas::Exception:

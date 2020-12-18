@@ -15,6 +15,11 @@ Token Lexer::next() {
 
     eat_whitespace();
 
+    token.line = line;
+
+    if (current >= input->size()) {
+        return { Token::Kind::END };
+    }
     switch (auto ch = input->at(current)) {
         case '+':
             token = { Token::Kind::PLUS, current, 1 };
@@ -76,6 +81,7 @@ Token Lexer::next() {
 
 void Lexer::eat_whitespace() {
     for (auto it = input->begin() + current; it != input->end() && isspace(*it); ++it) {
+        if (*it == '\n') line += 1;
         current += 1;
     }
 }
