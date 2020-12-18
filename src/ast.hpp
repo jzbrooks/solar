@@ -1,45 +1,32 @@
 #pragma once
 
-#include <vector>
-#include <string>
-
 namespace ast {
-
-    struct Type {
-
+    enum class Type {
+        BOOL,
+        INT,
+        FLOAT,
     };
 
-    struct Parameter {
-        std::string name;
-        Type* type;
+    union Value {
+        bool boolean;
+        int int32;
+        long int64;
+        double floating;
     };
 
-    struct FunctionDecl {
-        std::string name;
-        std::vector<Parameter*> parameters;
-        Type* returnType;
+    enum class Operation {
+        PLUS,
     };
 
-    struct Statement {
+    struct Expression {};
 
+    struct IntExpression : public Expression {
+        Value value;
     };
 
-    struct Expression {
-
-    };
-
-    struct Block {
-        std::vector<Statement*> statements;
-    };
-
-    struct Node {
-        enum class Kind {
-
-        };
-
-        Kind kind;
-        union {
-            FunctionDecl functionDecl;
-        };
+    struct Binop {
+        Expression* left;
+        Expression* right;
+        Operation operation;
     };
 }
