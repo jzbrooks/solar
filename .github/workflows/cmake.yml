@@ -27,8 +27,8 @@ jobs:
       # uses: KyleMayes/install-llvm-action@01144dc97b1e2693196c3056414a44f15180648b
       uses: KyleMayes/install-llvm-action@v1.1.0
       with:
-        # The version of LLVM and Clang binaries to install.
-        version: 11
+        version: "10.0"
+        directory: ${{ runner.temp }}/llvm
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -40,8 +40,8 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
       env:
-        CC: clang
-        CXX: clang++
+        CC: ${{ runner.temp }}/llvm/bin/clang
+        CXX: ${{ runner.temp }}/llvm/bin/clang++
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
