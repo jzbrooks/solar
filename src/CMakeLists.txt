@@ -1,4 +1,4 @@
-project(compiler)
+project(solar)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -13,11 +13,11 @@ list(REMOVE_ITEM lib_sources ${PROJECT_SOURCE_DIR}/main.cpp)
 message(${lib_sources})
 
 # All sources that also need to be tested in unit tests go into a static library
-add_library(compiler_lib STATIC ${lib_sources})
+add_library(solar_lib STATIC ${lib_sources})
 
 # Link against LLVM libraries
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs core)
 
 # The main program
-add_executable(compiler main.cpp)
-target_link_libraries(compiler PRIVATE compiler_lib ${llvm_libs})
+add_executable(solar main.cpp)
+target_link_libraries(solar PRIVATE solar_lib)
