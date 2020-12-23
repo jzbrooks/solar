@@ -12,7 +12,7 @@ jobs:
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v2
@@ -27,7 +27,7 @@ jobs:
       # uses: KyleMayes/install-llvm-action@01144dc97b1e2693196c3056414a44f15180648b
       uses: KyleMayes/install-llvm-action@v1.1.0
       with:
-        version: "10.0"
+        version: "11.0"
         directory: ${{ runner.temp }}/llvm
 
     - name: Configure CMake
