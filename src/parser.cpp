@@ -8,13 +8,19 @@ Parser::Parser(Lexer* lexer) : rules {
 }, lexer { lexer } {
 }
 
-ast::Expression* Parser::parseProgram()
+ast::Program* Parser::parseProgram()
 {
     advance(); // prime the pump
 
-    return parsePrecedence(Precedence::LOWEST);
+    std::vector<ast::Statement*> statements;
+    while (current.kind != Token::Kind::END)
+    {
+        auto expression = parsePrecedence(Precedence::LOWEST);
+        auto statement = new ast::ExpressionStatement { .expression = expression };
+        statements.emplace_back(statement);
+    }
 
-    // error("Don't be dumb!");
+    return new ast::Program { statements };
 }
 
 ast::Expression* Parser::parsePrecedence(Precedence precedence)
@@ -34,20 +40,33 @@ ast::Expression* Parser::parsePrecedence(Precedence precedence)
         }
         auto infixRule = rules[previous.kind].infix;
 
-        (this->*(infixRule))(left);
+        if (infixRule != nullptr) {
+            left = (this->*(infixRule))(left);
+        }
     }
 
     return left;
 }
 
 ast::Expression* Parser::number() {
-    return new ast::IntExpression { .value = ast::Value { .int32 = atoi(lexer->input->data() + current.start) } };
+    return new ast::IntExpression { .value = ast::Value { .int32 = (int)strtol(lexer->input->data() + current.start, nullptr, 10) } };
 }
 ast::Expression* Parser::variable() {
     return new ast::Expression();
 }
 ast::Expression* Parser::binary(ast::Expression* left) {
-    return new ast::Expression();
+    ast::Expression* right;
+    switch(previous.kind)
+    {
+        case Token::Kind::PLUS:
+            right = parsePrecedence(Precedence::SUM);
+            return new ast::Binop { .left = left, .right = right, .operation = ast::Operation::PLUS };
+        default:
+            std::ostringstream stream;
+            stream << "Unsupported binary operation: " << name(current.kind) << std::endl;
+            error(stream.str().c_str());
+            // todo: panic mode
+    }
 }
 
 void Parser::advance()

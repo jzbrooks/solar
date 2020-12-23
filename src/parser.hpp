@@ -14,6 +14,7 @@ typedef ast::Expression* (Parser::*InfixRule)(ast::Expression*);
 
 enum class Precedence {
     LOWEST = 0,
+    SUM,
     TERM,
     CALL,
 };
@@ -43,6 +44,6 @@ class Parser {
 
 public:
     explicit Parser(Lexer* lexer);
-    ast::Expression* parseProgram();
+    ast::Program* parseProgram();
 };
 

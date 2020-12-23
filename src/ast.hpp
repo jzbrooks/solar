@@ -24,9 +24,19 @@ namespace ast {
         Value value;
     };
 
-    struct Binop {
+    struct Binop : public Expression{
         Expression* left;
         Expression* right;
         Operation operation;
+    };
+
+    struct Statement {};
+
+    struct ExpressionStatement : public Statement {
+        Expression* expression;
+    };
+
+    struct Program {
+        std::vector<Statement*> statements;
     };
 }
