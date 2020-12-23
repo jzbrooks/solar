@@ -17,7 +17,7 @@ if (-Not (Test-Path $llvm_project -PathType Container)) {
 Set-Location $llvm_project
 
 if (Test-Path .\build -PathType Container) {
-	Remove-Item -Path .\build
+	Remove-Item -Path .\build -Recurse
 }
 
 New-Item -Path . -Name "build" -ItemType Directory
