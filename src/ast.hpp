@@ -15,7 +15,10 @@ namespace ast {
     };
 
     enum class Operation {
-        PLUS,
+        ADD,
+        SUBTRACT,
+        MULTIPLY,
+        DIVIDE,
     };
 
     struct Expression {};
@@ -24,7 +27,7 @@ namespace ast {
         Value value;
     };
 
-    struct Binop : public Expression{
+    struct Binop : public Expression {
         Expression* left;
         Expression* right;
         Operation operation;

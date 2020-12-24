@@ -14,8 +14,8 @@ typedef ast::Expression* (Parser::*InfixRule)(ast::Expression*);
 
 enum class Precedence {
     LOWEST = 0,
-    SUM,
     TERM,
+    FACTOR,
     CALL,
 };
 
@@ -27,15 +27,15 @@ struct ParseRule {
 
 class Parser {
     Lexer* lexer;
+    Token lookahead;
     Token current;
-    Token previous;
     std::unordered_map<Token::Kind, ParseRule> rules;
 
     ast::Expression* number();
     ast::Expression* variable();
     ast::Expression* binary(ast::Expression*);
 
-    ast::Expression* parsePrecedence(Precedence precedence);
+    ast::Expression* expression(Precedence precedence);
 
     void advance();
     void consume(Token::Kind kind, const char* message);

@@ -17,10 +17,13 @@ Token Lexer::next() {
 
     token.line = line;
 
-    if (current >= input->size()) {
+    auto ch = input->at(current);
+
+    if (current >= input->size() || ch == EOF) {
         return { Token::Kind::END };
     }
-    switch (auto ch = input->at(current)) {
+
+    switch (ch) {
         case '+':
             token = { Token::Kind::PLUS, current, 1 };
             break;
