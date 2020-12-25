@@ -109,7 +109,7 @@ Token Lexer::read_word() const {
 
 Token Lexer::read_number() const {
     auto length = 0;
-    for (auto it = input->begin() + current; it != input->end() && isdigit(*it); ++it) {
+    for (auto it = input->begin() + current; it != input->end() && isNumber(*it); ++it) {
         length += 1;
     }
 

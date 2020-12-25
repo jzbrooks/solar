@@ -8,7 +8,25 @@ TEST_CASE( "Parse integer expression. ", "[parser]") {
     Parser parser(&lexer);
     auto program = parser.parseProgram();
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(int32<1>)");
+    REQUIRE(statement->expression->describe() == "(int64<1>)");
+}
+
+TEST_CASE( "Parse float expression. ", "[parser]") {
+    std::vector<char> input { '1', '.', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+    auto program = parser.parseProgram();
+    auto statement = (ast::ExpressionStatement*)program->statements.front();
+    REQUIRE(statement->expression->describe() == "(float64<1>)");
+}
+
+TEST_CASE( "Parse literal qualifier expression. ", "[parser]") {
+    std::vector<char> input { '1', 'u', '3', '2', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+    auto program = parser.parseProgram();
+    auto statement = (ast::ExpressionStatement*)program->statements.front();
+    REQUIRE(statement->expression->describe() == "(uint32<1>)");
 }
 
 TEST_CASE( "Parse integer addition expression. ", "[parser]") {
@@ -17,7 +35,7 @@ TEST_CASE( "Parse integer addition expression. ", "[parser]") {
     Parser parser(&lexer);
     auto program = parser.parseProgram();
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(+ (int32<1>) (int32<2>))");
+    REQUIRE(statement->expression->describe() == "(+ (int64<1>) (int64<2>))");
 }
 
 TEST_CASE( "Parse integer subtraction expression. ", "[parser]") {
@@ -26,7 +44,7 @@ TEST_CASE( "Parse integer subtraction expression. ", "[parser]") {
     Parser parser(&lexer);
     auto program = parser.parseProgram();
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(- (int32<1>) (int32<2>))");
+    REQUIRE(statement->expression->describe() == "(- (int64<1>) (int64<2>))");
 }
 
 TEST_CASE( "Parse integer multiplication expression. ", "[parser]") {
@@ -35,7 +53,7 @@ TEST_CASE( "Parse integer multiplication expression. ", "[parser]") {
     Parser parser(&lexer);
     auto program = parser.parseProgram();
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(* (int32<1>) (int32<2>))");
+    REQUIRE(statement->expression->describe() == "(* (int64<1>) (int64<2>))");
 }
 
 TEST_CASE( "Parse integer division expression. ", "[parser]") {
@@ -44,7 +62,7 @@ TEST_CASE( "Parse integer division expression. ", "[parser]") {
     Parser parser(&lexer);
     auto program = parser.parseProgram();
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(/ (int32<1>) (int32<2>))");
+    REQUIRE(statement->expression->describe() == "(/ (int64<1>) (int64<2>))");
 }
 
 TEST_CASE( "Parse multiple integer addition expression. ", "[parser]") {
@@ -55,7 +73,7 @@ TEST_CASE( "Parse multiple integer addition expression. ", "[parser]") {
     auto program = parser.parseProgram();
 
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(+ (+ (int32<1>) (int32<2>)) (int32<3>))");
+    REQUIRE(statement->expression->describe() == "(+ (+ (int64<1>) (int64<2>)) (int64<3>))");
 }
 
 TEST_CASE( "Parse term/factor precedence expression. ", "[parser]") {
@@ -66,5 +84,5 @@ TEST_CASE( "Parse term/factor precedence expression. ", "[parser]") {
     auto program = parser.parseProgram();
 
     auto statement = (ast::ExpressionStatement*)program->statements.front();
-    REQUIRE(statement->expression->describe() == "(+ (int32<1>) (/ (int32<2>) (int32<3>)))");
+    REQUIRE(statement->expression->describe() == "(+ (int64<1>) (/ (int64<2>) (int64<3>)))");
 }

@@ -40,6 +40,7 @@ namespace ast {
         Type type;
         Value value;
 
+        LiteralValueExpression() = default;
         LiteralValueExpression(Type type, const Value& value) : type(type), value(value) {}
 
         [[nodiscard]]
