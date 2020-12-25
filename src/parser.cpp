@@ -53,10 +53,13 @@ ast::Expression* Parser::expression(Precedence precedence)
 }
 
 ast::Expression* Parser::number() {
-    return new ast::IntExpression { .value = ast::Value { .int32 = (int)strtol(lexer->input->data() + current.start, nullptr, 10) } };
+    return new ast::LiteralValueExpression(
+        ast::Type::INT32,
+        ast::Value { .int32 = (int)strtol(lexer->input->data() + current.start, nullptr, 10) }
+    );
 }
 ast::Expression* Parser::variable() {
-    return new ast::Expression();
+    return new ast::LiteralValueExpression(ast::Type::BOOL, ast::Value { .boolean = false });
 }
 ast::Expression* Parser::binary(ast::Expression* left) {
     ast::Operation operation;
@@ -85,7 +88,7 @@ ast::Expression* Parser::binary(ast::Expression* left) {
     auto currentPrecedence = rules[current.kind].precedence;
     advance();
     auto right = expression(currentPrecedence);
-    return new ast::Binop { .left = left, .right = right, .operation = operation };
+    return new ast::Binop(left, right, operation);
 }
 
 void Parser::advance()
