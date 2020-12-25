@@ -109,8 +109,15 @@ Token Lexer::read_word() const {
 
 Token Lexer::read_number() const {
     auto length = 0;
-    for (auto it = input->begin() + current; it != input->end() && isNumber(*it); ++it) {
+    for (auto it = input->begin() + current; it != input->end() && (isdigit(*it) || *it == '.'); ++it) {
         length += 1;
+    }
+
+    if (input->size() > current + length + 3) {
+        std::string slice(input->data() + current + length, 3);
+        if (slice == "u32" || slice == "u64" || slice == "f32" || slice == "i32") {
+            length += 3;
+        }
     }
 
     return Token { Token::Kind::NUMBER, current, length };

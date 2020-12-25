@@ -16,7 +16,3 @@ private:
     Token read_number() const;
     bool match(char) const;
 };
-
-static bool isNumber(const char& c) {
-    return isdigit(c) || c == '.' || c == 'i' || c == 'u' || c == 'f';
-}
