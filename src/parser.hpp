@@ -34,7 +34,7 @@ class Parser {
     ast::Expression* number();
     ast::Expression* variable();
     ast::Expression* binary(ast::Expression*);
-
+    ast::Expression* conditional();
     ast::Expression* expression(Precedence precedence);
 
     void advance();

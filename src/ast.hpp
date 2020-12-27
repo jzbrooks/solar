@@ -118,6 +118,32 @@ namespace ast {
         }
     };
 
+    struct Condition : public Expression
+    {
+        Expression* condition;
+        Expression* met;
+        Expression* otherwise;
+
+        Condition() = default;
+
+        virtual ~Condition()
+        {
+            delete condition;
+            delete met;
+            delete otherwise;
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(if " << condition->describe()
+                    << " then " << met->describe()
+                    << " otherwise " << otherwise->describe() << ")";
+
+            return builder.str();
+        }
+    };
+
     struct Statement {};
 
     struct ExpressionStatement : public Statement {

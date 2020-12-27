@@ -2,13 +2,14 @@
 #include <sstream>
 
 Parser::Parser(Lexer* lexer) : rules {
-    {Token::Kind::NUMBER, ParseRule{&Parser::number, nullptr, Precedence::LOWEST} },
+    {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
     {Token::Kind::IDENTIFIER, ParseRule{&Parser::variable, nullptr, Precedence::LOWEST} },
-    {Token::Kind::PLUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
+    {Token::Kind::IF, ParseRule{&Parser::conditional, nullptr, Precedence::LOWEST}},
     {Token::Kind::MINUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
+    {Token::Kind::NUMBER, ParseRule{&Parser::number, nullptr, Precedence::LOWEST} },
+    {Token::Kind::PLUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
     {Token::Kind::STAR, ParseRule{nullptr, &Parser::binary, Precedence::FACTOR} },
     {Token::Kind::SLASH, ParseRule{nullptr, &Parser::binary, Precedence::FACTOR} },
-    {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
 }, lexer { lexer } {
 }
 
@@ -27,6 +28,28 @@ ast::Program* Parser::parseProgram()
     }
 
     return new ast::Program { statements };
+}
+
+ast::Expression* Parser::conditional()
+{
+    auto expression = new ast::Condition();
+
+    consume(Token::Kind::IF, "Expected an if keyword");
+    expression->condition = this->expression(Precedence::LOWEST);
+    advance();
+    consume(Token::Kind::LBRACE, "'{' expected after if condition.");
+    expression->met = this->expression(Precedence::LOWEST);
+    advance();
+    consume(Token::Kind::RBRACE, "'}' expected after if body.");
+    // todo: downgrade if to a statement if no 'else' clause is provided.
+    //  For now, 'else' is required.
+    consume(Token::Kind::ELSE, "else branches are required for now.");
+    consume(Token::Kind::LBRACE, "'{' expected after else.");
+    expression->otherwise = this->expression(Precedence::LOWEST);
+    advance();
+    consume(Token::Kind::RBRACE, "'}' expected after else body.");
+
+    return expression;
 }
 
 ast::Expression* Parser::expression(Precedence precedence)

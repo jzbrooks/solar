@@ -86,3 +86,15 @@ TEST_CASE( "Parse term/factor precedence expression. ", "[parser]") {
     auto statement = (ast::ExpressionStatement*)program->statements.front();
     REQUIRE(statement->expression->describe() == "(+ (int64<1>) (/ (int64<2>) (int64<3>)))");
 }
+
+TEST_CASE( "Parse condition expression. ", "[parser]") {
+    // todo: give this a real condition
+    std::vector<char> input { 'i', 'f', ' ', '1', '{', '3', '}', 'e', 'l', 's', 'e', '{', '0', '}', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+
+    auto program = parser.parseProgram();
+
+    auto statement = (ast::ExpressionStatement*)program->statements.front();
+    REQUIRE(statement->expression->describe() == "(if (int64<1>) then (int64<3>) otherwise (int64<0>))");
+}
