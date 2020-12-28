@@ -41,13 +41,16 @@ ast::Expression* Parser::conditional()
     expression->met = this->expression(Precedence::LOWEST);
     advance();
     consume(Token::Kind::RBRACE, "'}' expected after if body.");
-    // todo: downgrade if to a statement if no 'else' clause is provided.
-    //  For now, 'else' is required.
-    consume(Token::Kind::ELSE, "else branches are required for now.");
-    consume(Token::Kind::LBRACE, "'{' expected after else.");
-    expression->otherwise = this->expression(Precedence::LOWEST);
-    advance();
-    consume(Token::Kind::RBRACE, "'}' expected after else body.");
+
+    if (current.kind == Token::Kind::ELSE) {
+        consume(Token::Kind::ELSE, "Expected an else keyword.");
+        consume(Token::Kind::LBRACE, "'{' expected after else.");
+        expression->otherwise = this->expression(Precedence::LOWEST);
+        advance();
+        consume(Token::Kind::RBRACE, "'}' expected after else body.");
+    } else {
+        expression->otherwise = nullptr;
+    }
 
     return expression;
 }

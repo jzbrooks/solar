@@ -98,3 +98,15 @@ TEST_CASE( "Parse condition expression. ", "[parser]") {
     auto statement = (ast::ExpressionStatement*)program->statements.front();
     REQUIRE(statement->expression->describe() == "(if (int64<1>) then (int64<3>) otherwise (int64<0>))");
 }
+
+TEST_CASE( "Parse condition without else. ", "[parser]") {
+    // todo: give this a real condition
+    std::vector<char> input { 'i', 'f', ' ', '1', '{', '3', '}', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+
+    auto program = parser.parseProgram();
+
+    auto statement = (ast::ExpressionStatement*)program->statements.front();
+    REQUIRE(statement->expression->describe() == "(if (int64<1>) then (int64<3>))");
+}

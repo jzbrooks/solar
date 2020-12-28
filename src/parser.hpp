@@ -27,8 +27,8 @@ struct ParseRule {
 
 class Parser {
     Lexer* lexer;
-    Token lookahead;
-    Token current;
+    Token lookahead{};
+    Token current{};
     std::unordered_map<Token::Kind, ParseRule> rules;
 
     ast::Expression* number();

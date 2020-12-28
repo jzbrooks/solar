@@ -137,9 +137,13 @@ namespace ast {
         std::string describe() const override {
             std::ostringstream builder;
             builder << "(if " << condition->describe()
-                    << " then " << met->describe()
-                    << " otherwise " << otherwise->describe() << ")";
+                    << " then " << met->describe();
+            if (otherwise)
+            {
+                builder << " otherwise " << otherwise->describe();
+            }
 
+            builder << ")";
             return builder.str();
         }
     };
