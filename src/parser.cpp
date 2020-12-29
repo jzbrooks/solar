@@ -3,9 +3,15 @@
 
 Parser::Parser(Lexer* lexer) : rules {
     {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
+    {Token::Kind::EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::EQUALS} },
+    {Token::Kind::GREATER, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
+    {Token::Kind::GREATER_EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
     {Token::Kind::IDENTIFIER, ParseRule{&Parser::variable, nullptr, Precedence::LOWEST} },
     {Token::Kind::IF, ParseRule{&Parser::conditional, nullptr, Precedence::LOWEST}},
+    {Token::Kind::LESS, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
+    {Token::Kind::LESS_EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
     {Token::Kind::MINUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
+    {Token::Kind::NOT_EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::EQUALS} },
     {Token::Kind::NUMBER, ParseRule{&Parser::number, nullptr, Precedence::LOWEST} },
     {Token::Kind::PLUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
     {Token::Kind::STAR, ParseRule{nullptr, &Parser::binary, Precedence::FACTOR} },
@@ -127,6 +133,24 @@ ast::Expression* Parser::binary(ast::Expression* left) {
             break;
         case Token::Kind::SLASH:
             operation = ast::Operation::DIVIDE;
+            break;
+        case Token::Kind::LESS:
+            operation = ast::Operation::COMPARE_IS_LESS;
+            break;
+        case Token::Kind::LESS_EQUAL:
+            operation = ast::Operation::COMPARE_IS_LESS_OR_EQUAL;
+            break;
+        case Token::Kind::GREATER:
+            operation = ast::Operation::COMPARE_IS_GREATER;
+            break;
+        case Token::Kind::GREATER_EQUAL:
+            operation = ast::Operation::COMPARE_IS_GREATER_OR_EQUAL;
+            break;
+        case Token::Kind::EQUAL:
+            operation = ast::Operation::COMPARE_IS_EQUAL;
+            break;
+        case Token::Kind::NOT_EQUAL:
+            operation = ast::Operation::COMPARE_IS_NOT_EQUAL;
             break;
         default:
             std::ostringstream stream;

@@ -40,6 +40,13 @@ Token Lexer::next() {
         case '/':
             token = { Token::Kind::SLASH, current, 1 };
             break;
+        case '=':
+            if (match('=')) {
+                token = { Token::Kind::EQUAL, current, 2 };
+            } else {
+                token = { Token::Kind::ASSIGN, current, 1 };
+            }
+            break;
         case '<':
             if (match('=')) {
                 token = { Token::Kind::LESS_EQUAL, current, 2 };
@@ -65,6 +72,13 @@ Token Lexer::next() {
             break;
         case '}':
             token = { Token::Kind::RBRACE, current, 1 };
+            break;
+        case '!':
+            if (match('=')) {
+                token = { Token::Kind::NOT_EQUAL, current, 2 };
+            } else {
+                token = { Token::Kind::NEGATE, current, 1 };
+            }
             break;
         default:
             if (isalpha(ch) || ch == '_') {

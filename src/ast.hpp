@@ -28,6 +28,12 @@ namespace ast {
         SUBTRACT,
         MULTIPLY,
         DIVIDE,
+        COMPARE_IS_EQUAL,
+        COMPARE_IS_LESS,
+        COMPARE_IS_LESS_OR_EQUAL,
+        COMPARE_IS_GREATER,
+        COMPARE_IS_GREATER_OR_EQUAL,
+        COMPARE_IS_NOT_EQUAL,
     };
 
     struct Expression {
@@ -110,6 +116,24 @@ namespace ast {
                     break;
                 case Operation::DIVIDE:
                     builder << '/';
+                    break;
+                case Operation::COMPARE_IS_EQUAL:
+                    builder << "==";
+                    break;
+                case Operation::COMPARE_IS_NOT_EQUAL:
+                    builder << "!=";
+                    break;
+                case Operation::COMPARE_IS_LESS:
+                    builder << "<";
+                    break;
+                case Operation::COMPARE_IS_LESS_OR_EQUAL:
+                    builder << "<=";
+                    break;
+                case Operation::COMPARE_IS_GREATER:
+                    builder << ">";
+                    break;
+                case Operation::COMPARE_IS_GREATER_OR_EQUAL:
+                    builder << ">=";
                     break;
             }
 

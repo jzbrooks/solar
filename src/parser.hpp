@@ -14,6 +14,8 @@ typedef ast::Expression* (Parser::*InfixRule)(ast::Expression*);
 
 enum class Precedence {
     LOWEST = 0,
+    EQUALS,
+    INEQUALITY,
     TERM,
     FACTOR,
     CALL,

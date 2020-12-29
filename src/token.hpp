@@ -29,6 +29,10 @@ struct Token {
         EQUAL,
         NOT_EQUAL,
 
+        NEGATE,
+
+        ASSIGN,
+
         RETURN,
 
         INVALID,
