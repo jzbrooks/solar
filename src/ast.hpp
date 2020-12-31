@@ -3,14 +3,18 @@
 #include <sstream>
 
 namespace ast {
-    enum class Type {
-        BOOL,
-        INT32,
-        INT64,
-        FLOAT32,
-        FLOAT64,
-        UINT32,
-        UINT64,
+    struct Type {
+        std::string name;
+
+        struct Primitive {
+            static constexpr const char* BOOL    = "bool\0";
+            static constexpr const char* INT32   = "int32\0";
+            static constexpr const char* INT64   = "int64\0";
+            static constexpr const char* UINT32  = "uint32\0";
+            static constexpr const char* UINT64  = "uint64\0";
+            static constexpr const char* FLOAT32 = "float32\0";
+            static constexpr const char* FLOAT64 = "float64\0";
+        };
     };
 
     union Value {
@@ -53,33 +57,25 @@ namespace ast {
         std::string describe() const override {
             std::ostringstream builder;
 
-            builder << "(";
+            builder << "(" << this->type.name << "<";
 
-            switch(this->type) {
-                case Type::BOOL:
-                    builder << "bool<" << value.boolean << ">";
-                    break;
-                case Type::INT32:
-                    builder << "int32<" << value.int32 << ">";
-                    break;
-                case Type::INT64:
-                    builder << "int64<" << value.int64 << ">";
-                    break;
-                case Type::FLOAT32:
-                    builder << "float32<" << value.float32 << ">";
-                    break;
-                case Type::FLOAT64:
-                    builder << "float64<" << value.float64 << ">";
-                    break;
-                case Type::UINT32:
-                    builder << "uint32<" << value.uint32 << ">";
-                    break;
-                case Type::UINT64:
-                    builder << "uint64<" << value.uint64 << ">";
-                    break;
+            if (type.name == Type::Primitive::BOOL) {
+                builder << value.boolean;
+            } else if (type.name == Type::Primitive::INT32) {
+                builder << value.int32;
+            } else if (type.name == Type::Primitive::INT64) {
+                builder << value.int64;
+            } else if (type.name == Type::Primitive::FLOAT32) {
+                builder << value.float32;
+            } else if (type.name == Type::Primitive::FLOAT64) {
+                builder << value.float64;
+            } else if (type.name == Type::Primitive::UINT32) {
+                builder << value.uint32;
+            } else if (type.name == Type::Primitive::UINT64) {
+                builder << value.uint64;
             }
 
-            builder << ")";
+            builder << ">)";
             return builder.str();
         }
     };

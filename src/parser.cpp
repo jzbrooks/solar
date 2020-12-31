@@ -90,24 +90,24 @@ ast::Expression* Parser::number() {
     auto expression = new ast::LiteralValueExpression();
     if (slice.find('.') != std::string::npos) {
         if (slice.ends_with("f32")) {
-            expression->type = ast::Type::FLOAT32;
+            expression->type = ast::Type { ast::Type::Primitive::FLOAT32 };
             expression->value = ast::Value{.float32 = std::stof(slice)};
         } else {
-            expression->type = ast::Type::FLOAT64;
+            expression->type = ast::Type { ast::Type::Primitive::FLOAT64 };
             expression->value = ast::Value{.float64 = std::stod(slice)};
         }
     } else {
         if (slice.ends_with("i32")) {
-            expression->type = ast::Type::INT32;
+            expression->type = ast::Type { ast::Type::Primitive::INT32 };
             expression->value = ast::Value { .int32 = std::stoi(slice) };
         } else if (slice.ends_with("u32")) {
-            expression->type = ast::Type::UINT32;
+            expression->type = ast::Type { ast::Type::Primitive::UINT32 };
             expression->value = ast::Value { .uint32 = (unsigned int)std::stoul(slice) };
         } else if (slice.ends_with("u64")) {
-            expression->type = ast::Type::UINT64;
+            expression->type = ast::Type { ast::Type::Primitive::UINT64 };
             expression->value = ast::Value { .uint64 = std::stoul(slice) };
         } else {
-            expression->type = ast::Type::INT64;
+            expression->type = ast::Type { ast::Type::Primitive::INT64 };
             expression->value = ast::Value { .int64 = std::stol(slice) };
         }
     }
@@ -115,7 +115,7 @@ ast::Expression* Parser::number() {
     return expression;
 }
 ast::Expression* Parser::variable() {
-    return new ast::LiteralValueExpression(ast::Type::BOOL, ast::Value { .boolean = false });
+    return new ast::LiteralValueExpression(ast::Type { ast::Type::Primitive::BOOL }, ast::Value { .boolean = false });
 }
 ast::Expression* Parser::binary(ast::Expression* left) {
     ast::Operation operation;
