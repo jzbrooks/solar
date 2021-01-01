@@ -1,6 +1,8 @@
 #include "parser.hpp"
 #include <sstream>
 
+using namespace ast;
+
 Parser::Parser(Lexer* lexer) : rules {
     {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
     {Token::Kind::EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::EQUALS} },
@@ -19,26 +21,26 @@ Parser::Parser(Lexer* lexer) : rules {
 }, lexer { lexer } {
 }
 
-ast::Program* Parser::parseProgram()
+Program* Parser::parseProgram()
 {
     advance(); // prime the pump
     advance();
 
-    std::vector<ast::Statement*> statements;
+    std::vector<Statement*> statements;
     while (current.kind != Token::Kind::END)
     {
         auto expression = this->expression(Precedence::LOWEST);
-        auto statement = new ast::ExpressionStatement { .expression = expression };
+        auto statement = new ExpressionStatement(expression);
         statements.emplace_back(statement);
         advance();
     }
 
-    return new ast::Program { statements };
+    return new Program { statements };
 }
 
-ast::Expression* Parser::conditional()
+Expression* Parser::conditional()
 {
-    auto expression = new ast::Condition();
+    auto expression = new Condition();
 
     consume(Token::Kind::IF, "Expected an if keyword");
     expression->condition = this->expression(Precedence::LOWEST);
@@ -61,7 +63,7 @@ ast::Expression* Parser::conditional()
     return expression;
 }
 
-ast::Expression* Parser::expression(Precedence precedence)
+Expression* Parser::expression(Precedence precedence)
 {
     auto prefixRule = rules[current.kind].prefix;
     if (prefixRule == nullptr) {
@@ -84,73 +86,75 @@ ast::Expression* Parser::expression(Precedence precedence)
     return left;
 }
 
-ast::Expression* Parser::number() {
+Expression* Parser::number() {
     std::string slice(lexer->input->data() + current.start, current.length);
 
-    auto expression = new ast::LiteralValueExpression();
+    auto expression = new LiteralValueExpression();
     if (slice.find('.') != std::string::npos) {
         if (slice.ends_with("f32")) {
-            expression->type = ast::Type { ast::Type::Primitive::FLOAT32 };
-            expression->value = ast::Value{.float32 = std::stof(slice)};
+            expression->type = Type { Type::Primitive::FLOAT32 };
+            expression->value = Value{.float32 = std::stof(slice)};
         } else {
-            expression->type = ast::Type { ast::Type::Primitive::FLOAT64 };
-            expression->value = ast::Value{.float64 = std::stod(slice)};
+            expression->type = Type { Type::Primitive::FLOAT64 };
+            expression->value = Value{.float64 = std::stod(slice)};
         }
     } else {
         if (slice.ends_with("i32")) {
-            expression->type = ast::Type { ast::Type::Primitive::INT32 };
-            expression->value = ast::Value { .int32 = std::stoi(slice) };
+            expression->type = Type { Type::Primitive::INT32 };
+            expression->value = Value { .int32 = std::stoi(slice) };
         } else if (slice.ends_with("u32")) {
-            expression->type = ast::Type { ast::Type::Primitive::UINT32 };
-            expression->value = ast::Value { .uint32 = (unsigned int)std::stoul(slice) };
+            expression->type = Type { Type::Primitive::UINT32 };
+            expression->value = Value { .uint32 = (unsigned int)std::stoul(slice) };
         } else if (slice.ends_with("u64")) {
-            expression->type = ast::Type { ast::Type::Primitive::UINT64 };
-            expression->value = ast::Value { .uint64 = std::stoul(slice) };
+            expression->type = Type { Type::Primitive::UINT64 };
+            expression->value = Value { .uint64 = std::stoul(slice) };
         } else {
-            expression->type = ast::Type { ast::Type::Primitive::INT64 };
-            expression->value = ast::Value { .int64 = std::stol(slice) };
+            expression->type = Type { Type::Primitive::INT64 };
+            expression->value = Value { .int64 = std::stol(slice) };
         }
     }
 
     return expression;
 }
-ast::Expression* Parser::variable() {
-    return new ast::LiteralValueExpression(ast::Type { ast::Type::Primitive::BOOL }, ast::Value { .boolean = false });
+
+Expression* Parser::variable() {
+    return new LiteralValueExpression(Type { Type::Primitive::BOOL }, Value { .boolean = false });
 }
-ast::Expression* Parser::binary(ast::Expression* left) {
-    ast::Operation operation;
+
+Expression* Parser::binary(Expression* left) {
+    Operation operation;
 
     switch(current.kind)
     {
         case Token::Kind::PLUS:
-            operation = ast::Operation::ADD;
+            operation = Operation::ADD;
             break;
         case Token::Kind::MINUS:
-            operation = ast::Operation::SUBTRACT;
+            operation = Operation::SUBTRACT;
             break;
         case Token::Kind::STAR:
-            operation = ast::Operation::MULTIPLY;
+            operation = Operation::MULTIPLY;
             break;
         case Token::Kind::SLASH:
-            operation = ast::Operation::DIVIDE;
+            operation = Operation::DIVIDE;
             break;
         case Token::Kind::LESS:
-            operation = ast::Operation::COMPARE_IS_LESS;
+            operation = Operation::COMPARE_IS_LESS;
             break;
         case Token::Kind::LESS_EQUAL:
-            operation = ast::Operation::COMPARE_IS_LESS_OR_EQUAL;
+            operation = Operation::COMPARE_IS_LESS_OR_EQUAL;
             break;
         case Token::Kind::GREATER:
-            operation = ast::Operation::COMPARE_IS_GREATER;
+            operation = Operation::COMPARE_IS_GREATER;
             break;
         case Token::Kind::GREATER_EQUAL:
-            operation = ast::Operation::COMPARE_IS_GREATER_OR_EQUAL;
+            operation = Operation::COMPARE_IS_GREATER_OR_EQUAL;
             break;
         case Token::Kind::EQUAL:
-            operation = ast::Operation::COMPARE_IS_EQUAL;
+            operation = Operation::COMPARE_IS_EQUAL;
             break;
         case Token::Kind::NOT_EQUAL:
-            operation = ast::Operation::COMPARE_IS_NOT_EQUAL;
+            operation = Operation::COMPARE_IS_NOT_EQUAL;
             break;
         default:
             std::ostringstream stream;
@@ -162,7 +166,7 @@ ast::Expression* Parser::binary(ast::Expression* left) {
     auto currentPrecedence = rules[current.kind].precedence;
     advance();
     auto right = expression(currentPrecedence);
-    return new ast::Binop(left, right, operation);
+    return new Binop(left, right, operation);
 }
 
 void Parser::advance()

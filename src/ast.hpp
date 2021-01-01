@@ -40,9 +40,12 @@ namespace ast {
         COMPARE_IS_NOT_EQUAL,
     };
 
-    struct Expression {
+    struct Node {
         [[nodiscard]]
         virtual std::string describe() const = 0;
+    };
+
+    struct Expression : public Node {
         virtual ~Expression() = default;
     };
 
@@ -168,10 +171,41 @@ namespace ast {
         }
     };
 
-    struct Statement {};
+    struct Statement : public Node {};
 
     struct ExpressionStatement : public Statement {
         Expression* expression;
+
+        ExpressionStatement(Expression* expression) : expression(expression) {}
+
+        [[nodiscard]]
+        std::string describe() const override {
+            return expression->describe();
+        }
+    };
+
+    struct Parameter {
+        std::string name;
+        std::string type;
+    };
+
+    struct FunctionDeclaration : public Statement {
+        std::string name;
+        std::vector<Parameter> parameterList;
+        std::vector<Statement*> body;
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(decl " << name << "(";
+            for (const auto& parameter : parameterList) {
+                builder << parameter.name << ":" << parameter.type;
+                if (&parameter != &parameterList.back()) builder << ", ";
+            }
+            builder << ") " << body.size() << " statements - last: " << body.back()->describe();
+
+            return builder.str();
+        }
     };
 
     struct Program {
