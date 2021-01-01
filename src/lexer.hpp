@@ -12,6 +12,7 @@ struct Lexer {
 
 private:
     void eat_whitespace();
+    std::string extractLexeme(size_t length) const;
     Token read_word() const;
     Token read_number() const;
     bool match(char) const;

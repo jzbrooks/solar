@@ -44,7 +44,7 @@ TEST_CASE( "Multi-letter identifier are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::IDENTIFIER );
-    REQUIRE( token.length == 4 );
+    REQUIRE( token.lexeme == "test" );
 }
 
 TEST_CASE( "Identifier can begin with '_'", "[lexer]" ) {
@@ -54,7 +54,7 @@ TEST_CASE( "Identifier can begin with '_'", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::IDENTIFIER );
-    REQUIRE( token.length == 5 );
+    REQUIRE( token.lexeme == "_test" );
 }
 
 TEST_CASE( "Reserved words are lexed", "[lexer]" ) {
@@ -64,7 +64,7 @@ TEST_CASE( "Reserved words are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::FUNC );
-    REQUIRE( token.length == 4 );
+    REQUIRE( token.lexeme == "func" );
 }
 
 TEST_CASE( "Numbers words are lexed", "[lexer]" ) {
@@ -74,7 +74,7 @@ TEST_CASE( "Numbers words are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::NUMBER );
-    REQUIRE(token.length == 4 );
+    REQUIRE(token.lexeme == "9321" );
 }
 
 TEST_CASE( "Arrows are lexed", "[lexer]" ) {
@@ -84,7 +84,7 @@ TEST_CASE( "Arrows are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::ARROW );
-    REQUIRE( token.length == 2 );
+    REQUIRE( token.lexeme == "->" );
 }
 
 TEST_CASE( "Less equal comparisons are lexed", "[lexer]" ) {
@@ -94,7 +94,7 @@ TEST_CASE( "Less equal comparisons are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::LESS_EQUAL );
-    REQUIRE( token.length == 2 );
+    REQUIRE( token.lexeme == "<=");
 }
 
 TEST_CASE( "Less comparisons are lexed", "[lexer]" ) {
@@ -104,28 +104,25 @@ TEST_CASE( "Less comparisons are lexed", "[lexer]" ) {
     auto token = lexer.next();
 
     REQUIRE( token.kind == Token::Kind::LESS );
-    REQUIRE( token.length == 1 );
+    REQUIRE( token.lexeme == "<" );
 }
 
 TEST_CASE( "Multiple tokens are lexed", "[lexer]" ) {
-    std::vector<char> input { '5', '>', '=', '5' };
+    std::vector<char> input { '5', '>', '=', '5', '0' };
     Lexer lexer{&input, 0};
 
     auto first = lexer.next();
 
     REQUIRE( first.kind == Token::Kind::NUMBER );
-    REQUIRE( first.start == 0 );
-    REQUIRE( first.length == 1 );
+    REQUIRE( first.lexeme == "5" );
 
     auto second = lexer.next();
 
     REQUIRE( second.kind == Token::Kind::GREATER_EQUAL );
-    REQUIRE( second.start == 1 );
-    REQUIRE( second.length == 2 );
+    REQUIRE( second.lexeme == ">=" );
 
     auto third = lexer.next();
 
     REQUIRE( third.kind == Token::Kind::NUMBER );
-    REQUIRE( third.start == 3 );
-    REQUIRE( third.length == 1 );
+    REQUIRE( third.lexeme == "50" );
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 struct Token {
     enum class Kind : int {
         IDENTIFIER = 0,
@@ -41,9 +43,12 @@ struct Token {
     };
 
     Kind kind;
-    int start;
-    int length;
+    std::string lexeme;
     int line;
+
+    Token() = default;
+    Token(Kind kind, const std::string& lexeme) : kind(kind), lexeme(lexeme) {}
+    Token(const Token& other) : kind(other.kind), lexeme(other.lexeme), line(other.line) {};
 };
 
 static auto name(Token::Kind kind) -> const char* {

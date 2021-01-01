@@ -87,30 +87,28 @@ Expression* Parser::expression(Precedence precedence)
 }
 
 Expression* Parser::number() {
-    std::string slice(lexer->input->data() + current.start, current.length);
-
     auto expression = new LiteralValueExpression();
-    if (slice.find('.') != std::string::npos) {
-        if (slice.ends_with("f32")) {
+    if (current.lexeme.find('.') != std::string::npos) {
+        if (current.lexeme.ends_with("f32")) {
             expression->type = Type { Type::Primitive::FLOAT32 };
-            expression->value = Value{.float32 = std::stof(slice)};
+            expression->value = Value{.float32 = std::stof(current.lexeme)};
         } else {
             expression->type = Type { Type::Primitive::FLOAT64 };
-            expression->value = Value{.float64 = std::stod(slice)};
+            expression->value = Value{.float64 = std::stod(current.lexeme)};
         }
     } else {
-        if (slice.ends_with("i32")) {
+        if (current.lexeme.ends_with("i32")) {
             expression->type = Type { Type::Primitive::INT32 };
-            expression->value = Value { .int32 = std::stoi(slice) };
-        } else if (slice.ends_with("u32")) {
+            expression->value = Value { .int32 = std::stoi(current.lexeme) };
+        } else if (current.lexeme.ends_with("u32")) {
             expression->type = Type { Type::Primitive::UINT32 };
-            expression->value = Value { .uint32 = (unsigned int)std::stoul(slice) };
-        } else if (slice.ends_with("u64")) {
+            expression->value = Value { .uint32 = (unsigned int)std::stoul(current.lexeme) };
+        } else if (current.lexeme.ends_with("u64")) {
             expression->type = Type { Type::Primitive::UINT64 };
-            expression->value = Value { .uint64 = std::stoul(slice) };
+            expression->value = Value { .uint64 = std::stoul(current.lexeme) };
         } else {
             expression->type = Type { Type::Primitive::INT64 };
-            expression->value = Value { .int64 = std::stol(slice) };
+            expression->value = Value { .int64 = std::stol(current.lexeme) };
         }
     }
 
@@ -194,6 +192,6 @@ void Parser::error(const char* message) const
 void Parser::error(const Token& token, const char* message) const
 {
     fprintf(stderr, "[line %d] Error", token.line);
-    fprintf(stderr, " at %d:", token.start);
+    fprintf(stderr, " at %s:", token.lexeme.c_str());
     fprintf(stderr, " %s\n", message);
 }
