@@ -9,8 +9,11 @@ namespace ast {
     struct LiteralValueExpression;
     struct Binop;
     struct Condition;
-    struct FunctionDeclaration;
+    struct Call;
+    struct FunctionType;
     struct ExpressionStatement;
+    struct Block;
+    struct Function;
 
     struct Type {
         std::string name;
@@ -58,6 +61,7 @@ namespace ast {
         virtual void visit(LiteralValueExpression&) = 0;
         virtual void visit(Binop&) = 0;
         virtual void visit(Condition&) = 0;
+        virtual void visit(Call&) = 0;
     };
 
     struct Expression : public Node {
@@ -199,9 +203,36 @@ namespace ast {
         }
     };
 
+    struct Call : public Expression {
+        std::string name;
+        std::vector<Expression*> arguments;
+
+        void accept(ExpressionVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(fn-call " << name << ": ";
+            for (const auto& expression : arguments) {
+                builder << expression->describe();
+
+                if (&expression != &arguments.back()) {
+                    builder << ", ";
+                }
+            }
+
+            builder << ")";
+            return builder.str();
+        }
+    };
+
     struct StatementVisitor {
         virtual void visit(ExpressionStatement&) = 0;
-        virtual void visit(FunctionDeclaration&) = 0;
+        virtual void visit(FunctionType&) = 0;
+        virtual void visit(Function&) = 0;
+        virtual void visit(Block&) = 0;
     };
 
     struct Statement : public Node {
@@ -228,10 +259,8 @@ namespace ast {
         std::string type;
     };
 
-    struct FunctionDeclaration : public Statement {
-        std::string name;
-        std::vector<Parameter> parameterList;
-        std::vector<Statement*> body;
+    struct Block : public Statement {
+        std::vector<Statement*> statements;
 
         void accept(StatementVisitor& visitor) override {
             visitor.visit(*this);
@@ -240,12 +269,54 @@ namespace ast {
         [[nodiscard]]
         std::string describe() const override {
             std::ostringstream builder;
-            builder << "(decl " << name << "(";
+            builder << "(block " << std::endl;
+            for (const auto& statement : statements) {
+                builder << statement->describe() << std::endl;
+            }
+            builder << ")";
+
+            return builder.str();
+        }
+    };
+
+    struct FunctionType : public Statement {
+        std::string name;
+        std::vector<Parameter> parameterList;
+
+        void accept(StatementVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(fn-type " << name << "(";
             for (const auto& parameter : parameterList) {
                 builder << parameter.name << ":" << parameter.type;
                 if (&parameter != &parameterList.back()) builder << ", ";
             }
-            builder << ") " << body.size() << " statements - last: " << body.back()->describe();
+            builder << ") ";
+
+            return builder.str();
+        }
+    };
+
+    struct Function : public Statement {
+        FunctionType* prototype;
+        Block* body;
+
+        void accept(StatementVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(fn-def "
+                    << prototype->describe()
+                    << " "
+                    << body->describe()
+                    << ")";
 
             return builder.str();
         }
