@@ -1,6 +1,6 @@
 $solar_dir = Get-Location | select -ExpandProperty Path
 $llvm_version = "11.0.0"
-$llvm_targets = "X86;ARM;AArch64"
+$llvm_targets = "host"
 $llvm_url = "https://github.com/llvm/llvm-project/archive/llvmorg-$llvm_version.zip"
 $llvm_zip = "llvm-project.zip"
 $llvm_project = "llvm-project-llvmorg-$llvm_version"
@@ -23,7 +23,7 @@ if (Test-Path .\build -PathType Container) {
 New-Item -Path . -Name "build" -ItemType Directory
 Set-Location ".\build"
 
-cmake ..\llvm -G "Visual Studio 16 2019" -Thost=x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_TARGETS_TO_BUILD="$llvm_targets" -DLLVM_ENABLE_DUMP=ON -DCMAKE_INSTALL_PREFIX="$solar_dir\$llvm_project\llvm" -DLLVM_USE_CRT_RELEASE=MT -DLLVM_USE_CRT_RELWITHDEBINFO=MT -DLLVM_USE_CRT_DEBUG=MTd
-cmake --build . --config RelWithDebInfo --target install
+cmake ..\llvm -G "Visual Studio 16 2019" -A x64 -Thost=x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_TARGETS_TO_BUILD="$llvm_targets" -DLLVM_ENABLE_DUMP=ON -DCMAKE_INSTALL_PREFIX="$solar_dir\llvm" -DLLVM_USE_CRT_RELEASE=MT -DLLVM_USE_CRT_RELWITHDEBINFO=MT -DLLVM_USE_CRT_DEBUG=MTd
+cmake --build . --config RelWithDebInfo --target install --parallel 4
 
 Set-Location $solar_dir

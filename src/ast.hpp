@@ -3,6 +3,15 @@
 #include <sstream>
 
 namespace ast {
+    struct Node;
+    struct Expression;
+    struct Statement;
+    struct LiteralValueExpression;
+    struct Binop;
+    struct Condition;
+    struct FunctionDeclaration;
+    struct ExpressionStatement;
+
     struct Type {
         std::string name;
 
@@ -45,7 +54,14 @@ namespace ast {
         virtual std::string describe() const = 0;
     };
 
+    struct ExpressionVisitor {
+        virtual void visit(LiteralValueExpression&) = 0;
+        virtual void visit(Binop&) = 0;
+        virtual void visit(Condition&) = 0;
+    };
+
     struct Expression : public Node {
+        virtual void accept(ExpressionVisitor&) = 0;
         virtual ~Expression() = default;
     };
 
@@ -55,6 +71,10 @@ namespace ast {
 
         LiteralValueExpression() = default;
         LiteralValueExpression(Type type, const Value& value) : type(type), value(value) {}
+
+        void accept(ExpressionVisitor& visitor) override {
+            visitor.visit(*this);
+        }
 
         [[nodiscard]]
         std::string describe() const override {
@@ -97,6 +117,10 @@ namespace ast {
         ~Binop() override {
             delete left;
             delete right;
+        }
+
+        void accept(ExpressionVisitor& visitor) override {
+            visitor.visit(*this);
         }
 
         [[nodiscard]]
@@ -149,11 +173,15 @@ namespace ast {
 
         Condition() = default;
 
-        virtual ~Condition()
+        ~Condition() override
         {
             delete condition;
             delete met;
             delete otherwise;
+        }
+
+        void accept(ExpressionVisitor& visitor) override {
+            visitor.visit(*this);
         }
 
         [[nodiscard]]
@@ -171,12 +199,23 @@ namespace ast {
         }
     };
 
-    struct Statement : public Node {};
+    struct StatementVisitor {
+        virtual void visit(ExpressionStatement&) = 0;
+        virtual void visit(FunctionDeclaration&) = 0;
+    };
+
+    struct Statement : public Node {
+        virtual void accept(StatementVisitor &) = 0;
+    };
 
     struct ExpressionStatement : public Statement {
         Expression* expression;
 
-        ExpressionStatement(Expression* expression) : expression(expression) {}
+        explicit ExpressionStatement(Expression* expression) : expression(expression) {}
+
+        void accept(StatementVisitor& visitor) override {
+            visitor.visit(*this);
+        }
 
         [[nodiscard]]
         std::string describe() const override {
@@ -193,6 +232,10 @@ namespace ast {
         std::string name;
         std::vector<Parameter> parameterList;
         std::vector<Statement*> body;
+
+        void accept(StatementVisitor& visitor) override {
+            visitor.visit(*this);
+        }
 
         [[nodiscard]]
         std::string describe() const override {

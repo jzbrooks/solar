@@ -2,6 +2,8 @@ project(solar)
 
 find_package(LLVM REQUIRED CONFIG)
 
+set(CMAKE_GENERATOR_PLATFORM x64)
+
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
@@ -12,12 +14,12 @@ file(GLOB lib_sources *.hpp *.cpp)
 list(REMOVE_ITEM lib_sources ${PROJECT_SOURCE_DIR}/main.cpp)
 message(${lib_sources})
 
+llvm_map_components_to_libnames(llvm_libraries ${LLVM_TARGETS_TO_BUILD} core irreader)
+
 # All sources that also need to be tested in unit tests go into a static library
 add_library(solar_lib STATIC ${lib_sources})
-
-# Link against LLVM libraries
-llvm_map_components_to_libnames(llvm_libs core)
+target_link_libraries(solar_lib ${llvm_libraries})
 
 # The main program
 add_executable(solar main.cpp)
-target_link_libraries(solar PRIVATE solar_lib)
+target_link_libraries(solar PRIVATE solar_lib ${llvm_libraries})
