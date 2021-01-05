@@ -1,6 +1,9 @@
 #pragma once
 
 #include <sstream>
+#include <vector>
+
+#include "token.hpp"
 
 namespace ast {
     struct Node;
@@ -16,16 +19,16 @@ namespace ast {
     struct Function;
 
     struct Type {
-        std::string name;
+        Token name;
 
         struct Primitive {
-            static constexpr const char* BOOL    = "bool\0";
-            static constexpr const char* INT32   = "int32\0";
-            static constexpr const char* INT64   = "int64\0";
-            static constexpr const char* UINT32  = "uint32\0";
-            static constexpr const char* UINT64  = "uint64\0";
-            static constexpr const char* FLOAT32 = "float32\0";
-            static constexpr const char* FLOAT64 = "float64\0";
+            static Token BOOL;
+            static Token INT32;
+            static Token INT64;
+            static Token UINT32;
+            static Token UINT64;
+            static Token FLOAT32;
+            static Token FLOAT64;
         };
     };
 
@@ -84,21 +87,21 @@ namespace ast {
         std::string describe() const override {
             std::ostringstream builder;
 
-            builder << "(" << this->type.name << "<";
+            builder << "(" << type.name.lexeme << "<";
 
-            if (type.name == Type::Primitive::BOOL) {
+            if (type.name.lexeme == Type::Primitive::BOOL.lexeme) {
                 builder << value.boolean;
-            } else if (type.name == Type::Primitive::INT32) {
+            } else if (type.name.lexeme == Type::Primitive::INT32.lexeme) {
                 builder << value.int32;
-            } else if (type.name == Type::Primitive::INT64) {
+            } else if (type.name.lexeme == Type::Primitive::INT64.lexeme) {
                 builder << value.int64;
-            } else if (type.name == Type::Primitive::FLOAT32) {
+            } else if (type.name.lexeme == Type::Primitive::FLOAT32.lexeme) {
                 builder << value.float32;
-            } else if (type.name == Type::Primitive::FLOAT64) {
+            } else if (type.name.lexeme == Type::Primitive::FLOAT64.lexeme) {
                 builder << value.float64;
-            } else if (type.name == Type::Primitive::UINT32) {
+            } else if (type.name.lexeme == Type::Primitive::UINT32.lexeme) {
                 builder << value.uint32;
-            } else if (type.name == Type::Primitive::UINT64) {
+            } else if (type.name.lexeme == Type::Primitive::UINT64.lexeme) {
                 builder << value.uint64;
             }
 
@@ -204,7 +207,7 @@ namespace ast {
     };
 
     struct Call : public Expression {
-        std::string name;
+        Token name;
         std::vector<Expression*> arguments;
 
         void accept(ExpressionVisitor& visitor) override {
@@ -214,7 +217,7 @@ namespace ast {
         [[nodiscard]]
         std::string describe() const override {
             std::ostringstream builder;
-            builder << "(fn-call " << name << ": ";
+            builder << "(fn-call " << name.lexeme << ": ";
             for (const auto& expression : arguments) {
                 builder << expression->describe();
 
@@ -255,8 +258,8 @@ namespace ast {
     };
 
     struct Parameter {
-        std::string name;
-        std::string type;
+        Token name;
+        Token type;
     };
 
     struct Block : public Statement {
@@ -280,7 +283,7 @@ namespace ast {
     };
 
     struct FunctionType : public Statement {
-        std::string name;
+        Token name;
         std::vector<Parameter> parameterList;
 
         void accept(StatementVisitor& visitor) override {
@@ -290,9 +293,9 @@ namespace ast {
         [[nodiscard]]
         std::string describe() const override {
             std::ostringstream builder;
-            builder << "(fn-type " << name << "(";
+            builder << "(fn-type " << name.lexeme << "(";
             for (const auto& parameter : parameterList) {
-                builder << parameter.name << ":" << parameter.type;
+                builder << parameter.name.lexeme << ":" << parameter.type.lexeme;
                 if (&parameter != &parameterList.back()) builder << ", ";
             }
             builder << ") ";

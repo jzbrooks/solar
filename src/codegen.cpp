@@ -62,7 +62,7 @@ void ExpressionGenerator::visit(ast::Binop &binop) {
     auto right = (ast::LiteralValueExpression*)binop.right;
     auto operation = binop.operation;
 
-    if (left->type.name == ast::Type::Primitive::INT64) {
+    if (left->type.name.lexeme == ast::Type::Primitive::INT64.lexeme) {
         auto leftValue = ConstantInt::get(Type::getInt64Ty(module->getContext()), left->value.int64);
         auto rightValue = ConstantInt::get(Type::getInt64Ty(module->getContext()), right->value.int64);
         switch (operation) {
