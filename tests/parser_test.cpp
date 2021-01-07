@@ -130,3 +130,14 @@ TEST_CASE( "Parse functions. ", "[parser]") {
     auto statement = (ast::Function*)program->statements.front();
     REQUIRE(statement->describe() == "(fn-def (fn-type add()  (block \n(+ (int64<1>) (int64<2>))\n))");
 }
+
+TEST_CASE( "Parse variable declarations. ", "[parser]") {
+    std::vector<char> input { 'c', 'o', 'u', 'n', 't', '=', '0', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+
+    auto program = parser.parseProgram();
+
+    auto statement = program->statements.front();
+    REQUIRE(statement->describe() == "(var-decl bool<count> (int64<0>))"); // this type should be corrected by inference
+}

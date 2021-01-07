@@ -7,8 +7,8 @@ using namespace std;
 
 Module* CodeGen::compileModule(const char* id, ast::Program* program) {
     auto module = new Module(id, *context);
-    ExpressionGenerator expressionGenerator(module, builder);
-    StatementGenerator statementGenerator(module, builder, expressionGenerator);
+    ExpressionGenerator expressionGenerator(module, builder, named_values);
+    StatementGenerator statementGenerator(module, builder, expressionGenerator, named_values);
 
     for (const auto& statement : program->statements) {
         statement->accept(statementGenerator);
@@ -17,12 +17,20 @@ Module* CodeGen::compileModule(const char* id, ast::Program* program) {
     return module;
 }
 
-CodeGen::CodeGen() : named_values(std::unordered_map<string, Value*>()){
+CodeGen::CodeGen() : named_values(new std::unordered_map<string, Value*>()){
     context = new LLVMContext();
     builder = new IRBuilder(*context);
 }
 
-StatementGenerator::StatementGenerator(Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator) : module(module), builder(builder), expressionGenerator(expressionGenerator) {}
+StatementGenerator::StatementGenerator(Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator, std::unordered_map<std::string, llvm::Value*>* named_values) : module(module), builder(builder), expressionGenerator(expressionGenerator), named_values(named_values) {}
+
+void StatementGenerator::visit(ast::VariableDeclaration& node) {
+    named_values->insert({node.name.lexeme, nullptr});
+
+    if (node.initializer) {
+        named_values->find(node.name.lexeme)->second = (Value*)node.initializer->accept(expressionGenerator);
+    }
+}
 
 void StatementGenerator::visit(ast::FunctionPrototype& node) {
     // not implemented
@@ -48,7 +56,7 @@ void StatementGenerator::visit(ast::Function& function)
 {
 }
 
-ExpressionGenerator::ExpressionGenerator(llvm::Module* module, llvm::IRBuilder<>* builder) : module(module), builder(builder) {}
+ExpressionGenerator::ExpressionGenerator(llvm::Module* module, llvm::IRBuilder<>* builder, unordered_map<string, Value*>* named_values) : module(module), builder(builder), named_values(named_values) {}
 
 void* ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
     if (expression.type.name.lexeme == ast::Type::Primitive::INT64.lexeme)
@@ -60,6 +68,8 @@ void* ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
     {
         return ConstantFP::get(Type::getDoubleTy(module->getContext()), expression.value.float64);
     }
+
+    return nullptr;
 }
 
 void* ExpressionGenerator::visit(ast::Binop &binop) {
@@ -90,7 +100,6 @@ void* ExpressionGenerator::visit(ast::Binop &binop) {
 }
 
 void* ExpressionGenerator::visit(ast::Condition &condition) {
-
 }
 
 void* ExpressionGenerator::visit(ast::Call& call) {
@@ -98,4 +107,5 @@ void* ExpressionGenerator::visit(ast::Call& call) {
 }
 
 void* ExpressionGenerator::visit(ast::Variable& variable) {
+    return named_values->at(variable.name.lexeme);
 }

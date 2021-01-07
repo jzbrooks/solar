@@ -123,6 +123,14 @@ Node* Parser::number() { // NOLINT(readability-make-member-function-const)
 Node* Parser::variable() {
     auto var = current;
     consume(Token::Kind::IDENTIFIER, "Expected an identifier.");
+
+    if (current.kind == Token::Kind::ASSIGN) {
+        advance();
+        auto initializer = (Expression*)expression(Precedence::LOWEST);
+        advance();
+        return new VariableDeclaration(var, Type::Primitive::BOOL, initializer);
+    }
+
     return new Variable(var);
 }
 

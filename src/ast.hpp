@@ -14,6 +14,7 @@ namespace ast {
     struct Binop;
     struct Condition;
     struct Call;
+    struct VariableDeclaration;
     struct FunctionPrototype;
     struct ExpressionStatement;
     struct Block;
@@ -252,6 +253,7 @@ namespace ast {
     };
 
     struct StatementVisitor {
+        virtual void visit(VariableDeclaration&) = 0;
         virtual void visit(ExpressionStatement&) = 0;
         virtual void visit(FunctionPrototype&) = 0;
         virtual void visit(Function&) = 0;
@@ -260,6 +262,26 @@ namespace ast {
 
     struct Statement : public Node {
         virtual void accept(StatementVisitor &) = 0;
+    };
+
+    struct VariableDeclaration : public Statement {
+        Token name;
+        Token type;
+        Expression* initializer;
+
+        VariableDeclaration() = delete;
+        VariableDeclaration(Token name, Token type, Expression* initializer) : name(name), type(type), initializer(initializer) {}
+
+        void accept(StatementVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(var-decl " << type.lexeme << "<" << name.lexeme << "> " << initializer->describe() << ")";
+            return builder.str();
+        }
     };
 
     struct ExpressionStatement : public Statement {

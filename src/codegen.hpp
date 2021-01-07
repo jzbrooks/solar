@@ -19,9 +19,10 @@ class ExpressionGenerator : public ast::ExpressionVisitor {
 private:
     llvm::Module* module;
     llvm::IRBuilder<>* builder;
+    std::unordered_map<std::string, llvm::Value*>* named_values;
 
 public:
-    explicit ExpressionGenerator(llvm::Module* module, llvm::IRBuilder<>* builder);
+    explicit ExpressionGenerator(llvm::Module* module, llvm::IRBuilder<>* builder, std::unordered_map<std::string, llvm::Value*>* named_values);
 
     void* visit(ast::Variable& variable) override;
     void* visit(ast::LiteralValueExpression &expression) override;
@@ -35,11 +36,13 @@ private:
     llvm::Module* module;
     llvm::IRBuilder<>* builder;
     ExpressionGenerator& expressionGenerator;
+    std::unordered_map<std::string, llvm::Value*>* named_values;
 
 public:
-    explicit StatementGenerator(llvm::Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator);
+    explicit StatementGenerator(llvm::Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator, std::unordered_map<std::string, llvm::Value*>* named_values);
 
 public:
+    void visit(ast::VariableDeclaration& statement) override;
     void visit(ast::FunctionPrototype& statement) override;
     void visit(ast::ExpressionStatement& statement) override;
     void visit(ast::Function& function) override;
@@ -49,7 +52,7 @@ public:
 class CodeGen {
     llvm::LLVMContext* context;
     llvm::IRBuilder<>* builder;
-    std::unordered_map<std::string, llvm::Value*> named_values;
+    std::unordered_map<std::string, llvm::Value*>* named_values;
 
 public:
     CodeGen();
