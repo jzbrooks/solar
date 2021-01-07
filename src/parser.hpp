@@ -31,6 +31,7 @@ class Parser {
     Lexer* lexer;
     Token lookahead{};
     Token current{};
+    std::vector<std::string> errors;
     std::unordered_map<Token::Kind, ParseRule> rules;
 
     ast::Node* number();
@@ -43,9 +44,9 @@ class Parser {
     ast::Node* statement();
 
     void advance();
-    void consume(Token::Kind kind, const char* message);
-    void error(const char* message) const;
-    void error(const Token& token, const char* message) const;
+    void consume(Token::Kind kind, const std::string& message);
+    void error(const std::string& message);
+    void error(const Token& token, const std::string& message);
 
 public:
     explicit Parser(Lexer* lexer);

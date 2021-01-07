@@ -1,7 +1,9 @@
 #include "parser.hpp"
 #include <sstream>
+#include <cassert>
 
 using namespace ast;
+using namespace std;
 
 Parser::Parser(Lexer* lexer) : rules {
     {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
@@ -19,7 +21,7 @@ Parser::Parser(Lexer* lexer) : rules {
     {Token::Kind::PLUS, ParseRule{nullptr, &Parser::binary, Precedence::TERM} },
     {Token::Kind::STAR, ParseRule{nullptr, &Parser::binary, Precedence::FACTOR} },
     {Token::Kind::SLASH, ParseRule{nullptr, &Parser::binary, Precedence::FACTOR} },
-}, lexer { lexer } {
+}, lexer { lexer }, errors(vector<string>()) {
 }
 
 Program* Parser::parseProgram()
@@ -27,7 +29,7 @@ Program* Parser::parseProgram()
     advance(); // prime the pump
     advance();
 
-    std::vector<Statement*> statements;
+    vector<Statement*> statements;
     while (current.kind != Token::Kind::END)
     {
         auto expression = (Expression*)this->expression(Precedence::LOWEST);
@@ -68,7 +70,7 @@ Node* Parser::expression(Precedence precedence)
 {
     auto prefixRule = rules[current.kind].prefix;
     if (prefixRule == nullptr) {
-        printf("Expected a prefix parse rule for token kind: %s", name(current.kind));
+        errors.emplace_back("Expected a prefix parse rule for token kind: %s", name(current.kind));
         return nullptr;
     }
 
@@ -87,29 +89,29 @@ Node* Parser::expression(Precedence precedence)
     return left;
 }
 
-Node* Parser::number() {
+Node* Parser::number() { // NOLINT(readability-make-member-function-const)
     auto expression = new LiteralValueExpression;
-    if (current.lexeme.find('.') != std::string::npos) {
+    if (current.lexeme.find('.') != string::npos) {
         if (current.lexeme.ends_with("f32")) {
             expression->type = Type { Type::Primitive::FLOAT32 };
-            expression->value = Value{.float32 = std::stof(current.lexeme)};
+            expression->value = Value{.float32 = stof(current.lexeme)};
         } else {
             expression->type = Type { Type::Primitive::FLOAT64 };
-            expression->value = Value{.float64 = std::stod(current.lexeme)};
+            expression->value = Value{.float64 = stod(current.lexeme)};
         }
     } else {
         if (current.lexeme.ends_with("i32")) {
             expression->type = Type { Type::Primitive::INT32 };
-            expression->value = Value { .int32 = std::stoi(current.lexeme) };
+            expression->value = Value { .int32 = stoi(current.lexeme) };
         } else if (current.lexeme.ends_with("u32")) {
             expression->type = Type { Type::Primitive::UINT32 };
-            expression->value = Value { .uint32 = (unsigned int)std::stoul(current.lexeme) };
+            expression->value = Value { .uint32 = (unsigned int)stoul(current.lexeme) };
         } else if (current.lexeme.ends_with("u64")) {
             expression->type = Type { Type::Primitive::UINT64 };
-            expression->value = Value { .uint64 = std::stoul(current.lexeme) };
+            expression->value = Value { .uint64 = stoul(current.lexeme) };
         } else {
             expression->type = Type { Type::Primitive::INT64 };
-            expression->value = Value { .int64 = std::stol(current.lexeme) };
+            expression->value = Value { .int64 = stol(current.lexeme) };
         }
     }
 
@@ -156,10 +158,10 @@ Node* Parser::binary(Node* left) {
             operation = Operation::COMPARE_IS_NOT_EQUAL;
             break;
         default:
-            std::ostringstream stream;
-            stream << "Unsupported binary operation: " << name(current.kind) << std::endl;
-            error(stream.str().c_str());
-            // todo: panic mode
+            ostringstream stream;
+            stream << "Unsupported binary operation: " << name(current.kind) << endl;
+            error(stream.str());
+            return nullptr;
     }
 
     auto currentPrecedence = rules[current.kind].precedence;
@@ -173,7 +175,7 @@ Node* Parser::function() {
     consume(Token::Kind::FUNC, "Expected a func keyword");
     assert(current.kind == Token::Kind::IDENTIFIER);
     type->name = current;
-    type->parameterList = std::vector<Parameter>();
+    type->parameterList = vector<Parameter>();
     advance();
     consume(Token::Kind::LPAREN, "Expected '('");
     consume(Token::Kind::RPAREN, "Expected ')'");
@@ -185,7 +187,7 @@ Node* Parser::function() {
 
 Node* Parser::block() {
     auto block = new Block;
-    block->statements = std::vector<Statement*>();
+    block->statements = vector<Statement*>();
     consume(Token::Kind::LBRACE, "Expected a '{'");
     while (current.kind != Token::Kind::RBRACE) {
         block->statements.push_back((Statement*)statement());
@@ -205,25 +207,25 @@ void Parser::advance()
     lookahead = lexer->next();
 }
 
-void Parser::consume(Token::Kind kind, const char* message) {
+void Parser::consume(Token::Kind kind, const string& message) {
     if (current.kind == kind) {
         advance();
         return;
     }
 
-    std::ostringstream stream;
-    stream << "Expected " << name(kind) << ", but got " << name(current.kind) << std::endl << std::string(message);
-    error(stream.str().c_str());
+    ostringstream stream;
+    stream << "Expected " << name(kind) << ", but got " << name(current.kind) << endl << string(message);
+    error(stream.str());
 }
 
-void Parser::error(const char* message) const
+void Parser::error(const string& message)
 {
     error(this->current, message);
 }
 
-void Parser::error(const Token& token, const char* message) const
+void Parser::error(const Token& token, const string& message)
 {
-    fprintf(stderr, "[line %d] Error", token.line);
-    fprintf(stderr, " at %s:", token.lexeme.c_str());
-    fprintf(stderr, " %s\n", message);
+    ostringstream builder;
+    builder << "[line " << token.line << "] Error at " << token.lexeme << ": " << message << endl;
+    errors.emplace_back(builder.str());
 }
