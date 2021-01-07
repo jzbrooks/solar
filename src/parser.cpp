@@ -41,13 +41,13 @@ Program* Parser::parseProgram()
 
 Node* Parser::conditional()
 {
-    auto expression = new Condition();
+    auto expression = new Condition;
 
     consume(Token::Kind::IF, "Expected an if keyword");
     expression->condition = (Expression*)this->expression(Precedence::LOWEST);
     advance();
     consume(Token::Kind::LBRACE, "'{' expected after if condition.");
-    expression->met = (Expression*)this->expression(Precedence::LOWEST);
+    expression->then = (Expression*)this->expression(Precedence::LOWEST);
     advance();
     consume(Token::Kind::RBRACE, "'}' expected after if body.");
 
@@ -88,7 +88,7 @@ Node* Parser::expression(Precedence precedence)
 }
 
 Node* Parser::number() {
-    auto expression = new LiteralValueExpression();
+    auto expression = new LiteralValueExpression;
     if (current.lexeme.find('.') != std::string::npos) {
         if (current.lexeme.ends_with("f32")) {
             expression->type = Type { Type::Primitive::FLOAT32 };

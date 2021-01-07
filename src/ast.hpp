@@ -175,7 +175,7 @@ namespace ast {
     struct Condition : public Expression
     {
         Expression* condition;
-        Expression* met;
+        Expression* then;
         Expression* otherwise;
 
         Condition() = default;
@@ -183,7 +183,7 @@ namespace ast {
         ~Condition() override
         {
             delete condition;
-            delete met;
+            delete then;
             delete otherwise;
         }
 
@@ -195,7 +195,7 @@ namespace ast {
         std::string describe() const override {
             std::ostringstream builder;
             builder << "(if " << condition->describe()
-                    << " then " << met->describe();
+                    << " then " << then->describe();
             if (otherwise)
             {
                 builder << " otherwise " << otherwise->describe();
