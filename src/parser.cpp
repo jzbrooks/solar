@@ -69,8 +69,8 @@ Node* Parser::conditional()
 Node* Parser::expression(Precedence precedence)
 {
     auto prefixRule = rules[current.kind].prefix;
-    if (prefixRule == nullptr) {
-        errors.emplace_back("Expected a prefix parse rule for token kind: %s", name(current.kind));
+    if (!prefixRule) {
+        errors.emplace_back("Expected a prefix parse rule for token kind: " + string(name(current.kind)));
         return nullptr;
     }
 
