@@ -9,8 +9,8 @@
 
 class Parser;
 
-typedef ast::Expression* (Parser::*PrefixRule)();
-typedef ast::Expression* (Parser::*InfixRule)(ast::Expression*);
+typedef ast::Node* (Parser::*PrefixRule)();
+typedef ast::Node* (Parser::*InfixRule)(ast::Node*);
 
 enum class Precedence {
     LOWEST = 0,
@@ -33,11 +33,14 @@ class Parser {
     Token current{};
     std::unordered_map<Token::Kind, ParseRule> rules;
 
-    ast::Expression* number();
-    ast::Expression* variable();
-    ast::Expression* binary(ast::Expression*);
-    ast::Expression* conditional();
-    ast::Expression* expression(Precedence precedence);
+    ast::Node* number();
+    ast::Node* variable();
+    ast::Node* binary(ast::Node*);
+    ast::Node* conditional();
+    ast::Node* expression(Precedence precedence);
+    ast::Node* function();
+    ast::Node* block();
+    ast::Node* statement();
 
     void advance();
     void consume(Token::Kind kind, const char* message);

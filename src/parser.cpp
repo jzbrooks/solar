@@ -6,6 +6,7 @@ using namespace ast;
 Parser::Parser(Lexer* lexer) : rules {
     {Token::Kind::END, ParseRule{nullptr, nullptr, Precedence::LOWEST} },
     {Token::Kind::EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::EQUALS} },
+    {Token::Kind::FUNC, ParseRule{&Parser::function, nullptr, Precedence::LOWEST} },
     {Token::Kind::GREATER, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
     {Token::Kind::GREATER_EQUAL, ParseRule{nullptr, &Parser::binary, Precedence::INEQUALITY}},
     {Token::Kind::IDENTIFIER, ParseRule{&Parser::variable, nullptr, Precedence::LOWEST} },
@@ -29,7 +30,7 @@ Program* Parser::parseProgram()
     std::vector<Statement*> statements;
     while (current.kind != Token::Kind::END)
     {
-        auto expression = this->expression(Precedence::LOWEST);
+        auto expression = (Expression*)this->expression(Precedence::LOWEST);
         auto statement = new ExpressionStatement(expression);
         statements.emplace_back(statement);
         advance();
@@ -38,22 +39,22 @@ Program* Parser::parseProgram()
     return new Program { statements };
 }
 
-Expression* Parser::conditional()
+Node* Parser::conditional()
 {
     auto expression = new Condition();
 
     consume(Token::Kind::IF, "Expected an if keyword");
-    expression->condition = this->expression(Precedence::LOWEST);
+    expression->condition = (Expression*)this->expression(Precedence::LOWEST);
     advance();
     consume(Token::Kind::LBRACE, "'{' expected after if condition.");
-    expression->met = this->expression(Precedence::LOWEST);
+    expression->met = (Expression*)this->expression(Precedence::LOWEST);
     advance();
     consume(Token::Kind::RBRACE, "'}' expected after if body.");
 
     if (current.kind == Token::Kind::ELSE) {
         consume(Token::Kind::ELSE, "Expected an else keyword.");
         consume(Token::Kind::LBRACE, "'{' expected after else.");
-        expression->otherwise = this->expression(Precedence::LOWEST);
+        expression->otherwise = (Expression*)this->expression(Precedence::LOWEST);
         advance();
         consume(Token::Kind::RBRACE, "'}' expected after else body.");
     } else {
@@ -63,7 +64,7 @@ Expression* Parser::conditional()
     return expression;
 }
 
-Expression* Parser::expression(Precedence precedence)
+Node* Parser::expression(Precedence precedence)
 {
     auto prefixRule = rules[current.kind].prefix;
     if (prefixRule == nullptr) {
@@ -86,7 +87,7 @@ Expression* Parser::expression(Precedence precedence)
     return left;
 }
 
-Expression* Parser::number() {
+Node* Parser::number() {
     auto expression = new LiteralValueExpression();
     if (current.lexeme.find('.') != std::string::npos) {
         if (current.lexeme.ends_with("f32")) {
@@ -115,11 +116,11 @@ Expression* Parser::number() {
     return expression;
 }
 
-Expression* Parser::variable() {
+Node* Parser::variable() {
     return new LiteralValueExpression(Type { Type::Primitive::BOOL }, Value { .boolean = false });
 }
 
-Expression* Parser::binary(Expression* left) {
+Node* Parser::binary(Node* left) {
     Operation operation;
 
     switch(current.kind)
@@ -163,8 +164,39 @@ Expression* Parser::binary(Expression* left) {
 
     auto currentPrecedence = rules[current.kind].precedence;
     advance();
-    auto right = expression(currentPrecedence);
-    return new Binop(left, right, operation);
+    auto right = (Expression*)expression(currentPrecedence);
+    return new Binop((Expression*)left, right, operation);
+}
+
+Node* Parser::function() {
+    auto type = new FunctionPrototype;
+    consume(Token::Kind::FUNC, "Expected a func keyword");
+    assert(current.kind == Token::Kind::IDENTIFIER);
+    type->name = current;
+    type->parameterList = std::vector<Parameter>();
+    advance();
+    consume(Token::Kind::LPAREN, "Expected '('");
+    consume(Token::Kind::RPAREN, "Expected ')'");
+    auto function = new Function;
+    function->prototype = type;
+    function->body = (Block*)block();
+    return function;
+}
+
+Node* Parser::block() {
+    auto block = new Block;
+    block->statements = std::vector<Statement*>();
+    consume(Token::Kind::LBRACE, "Expected a '{'");
+    while (current.kind != Token::Kind::RBRACE) {
+        block->statements.push_back((Statement*)statement());
+        advance();
+    }
+    return block;
+}
+
+Node* Parser::statement() {
+    // todo: useful until variable decls exist
+    return new ExpressionStatement( (Expression*)expression(Precedence::LOWEST));
 }
 
 void Parser::advance()

@@ -13,7 +13,7 @@ namespace ast {
     struct Binop;
     struct Condition;
     struct Call;
-    struct FunctionType;
+    struct FunctionPrototype;
     struct ExpressionStatement;
     struct Block;
     struct Function;
@@ -233,7 +233,7 @@ namespace ast {
 
     struct StatementVisitor {
         virtual void visit(ExpressionStatement&) = 0;
-        virtual void visit(FunctionType&) = 0;
+        virtual void visit(FunctionPrototype&) = 0;
         virtual void visit(Function&) = 0;
         virtual void visit(Block&) = 0;
     };
@@ -282,7 +282,7 @@ namespace ast {
         }
     };
 
-    struct FunctionType : public Statement {
+    struct FunctionPrototype : public Statement {
         Token name;
         std::vector<Parameter> parameterList;
 
@@ -305,7 +305,7 @@ namespace ast {
     };
 
     struct Function : public Statement {
-        FunctionType* prototype;
+        FunctionPrototype* prototype;
         Block* body;
 
         void accept(StatementVisitor& visitor) override {

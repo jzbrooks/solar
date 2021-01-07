@@ -37,7 +37,7 @@ public:
     explicit StatementGenerator(llvm::Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator);
 
 public:
-    void visit(ast::FunctionType& statement) override;
+    void visit(ast::FunctionPrototype& statement) override;
     void visit(ast::ExpressionStatement& statement) override;
     void visit(ast::Function& function) override;
     void visit(ast::Block& block) override;

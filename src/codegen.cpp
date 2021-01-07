@@ -23,7 +23,7 @@ CodeGen::CodeGen() {
 
 StatementGenerator::StatementGenerator(Module* module, llvm::IRBuilder<>* builder, ExpressionGenerator& expressionGenerator) : module(module), builder(builder), expressionGenerator(expressionGenerator) {}
 
-void StatementGenerator::visit(ast::FunctionType& node) {
+void StatementGenerator::visit(ast::FunctionPrototype& node) {
     // not implemented
 }
 

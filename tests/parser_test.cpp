@@ -119,3 +119,14 @@ TEST_CASE( "Parse condition without else. ", "[parser]") {
     auto statement = (ast::ExpressionStatement*)program->statements.front();
     REQUIRE(statement->expression->describe() == "(if (!= (int64<1>) (int64<3>)) then (int64<3>))");
 }
+
+TEST_CASE( "Parse functions. ", "[parser]") {
+    std::vector<char> input { 'f', 'u', 'n', 'c', ' ', 'a', 'd', 'd', '(', ')', '{', '1', '+', '2', '}', EOF };
+    Lexer lexer{&input, 0};
+    Parser parser(&lexer);
+
+    auto program = parser.parseProgram();
+
+    auto statement = (ast::Function*)program->statements.front();
+    REQUIRE(statement->describe() == "(fn-def (fn-type add()  (block \n(+ (int64<1>) (int64<2>))\n))");
+}
