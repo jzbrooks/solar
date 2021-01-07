@@ -90,36 +90,40 @@ Node* Parser::expression(Precedence precedence)
 }
 
 Node* Parser::number() { // NOLINT(readability-make-member-function-const)
-    auto expression = new LiteralValueExpression;
+    Type type;
+    Value value;
+
     if (current.lexeme.find('.') != string::npos) {
         if (current.lexeme.ends_with("f32")) {
-            expression->type = Type { Type::Primitive::FLOAT32 };
-            expression->value = Value{.float32 = stof(current.lexeme)};
+            type = Type { Type::Primitive::FLOAT32 };
+            value = Value{.float32 = stof(current.lexeme)};
         } else {
-            expression->type = Type { Type::Primitive::FLOAT64 };
-            expression->value = Value{.float64 = stod(current.lexeme)};
+            type = Type { Type::Primitive::FLOAT64 };
+            value = Value{.float64 = stod(current.lexeme)};
         }
     } else {
         if (current.lexeme.ends_with("i32")) {
-            expression->type = Type { Type::Primitive::INT32 };
-            expression->value = Value { .int32 = stoi(current.lexeme) };
+            type = Type { Type::Primitive::INT32 };
+            value = Value { .int32 = stoi(current.lexeme) };
         } else if (current.lexeme.ends_with("u32")) {
-            expression->type = Type { Type::Primitive::UINT32 };
-            expression->value = Value { .uint32 = (unsigned int)stoul(current.lexeme) };
+            type = Type { Type::Primitive::UINT32 };
+            value = Value { .uint32 = (unsigned int)stoul(current.lexeme) };
         } else if (current.lexeme.ends_with("u64")) {
-            expression->type = Type { Type::Primitive::UINT64 };
-            expression->value = Value { .uint64 = stoul(current.lexeme) };
+            type = Type { Type::Primitive::UINT64 };
+            value = Value { .uint64 = stoul(current.lexeme) };
         } else {
-            expression->type = Type { Type::Primitive::INT64 };
-            expression->value = Value { .int64 = stol(current.lexeme) };
+            type = Type { Type::Primitive::INT64 };
+            value = Value { .int64 = stol(current.lexeme) };
         }
     }
 
-    return expression;
+    return new LiteralValueExpression(type, value);
 }
 
 Node* Parser::variable() {
-    return new LiteralValueExpression(Type { Type::Primitive::BOOL }, Value { .boolean = false });
+    auto var = current;
+    consume(Token::Kind::IDENTIFIER, "Expected an identifier.");
+    return new Variable(var);
 }
 
 Node* Parser::binary(Node* left) {

@@ -9,6 +9,7 @@ namespace ast {
     struct Node;
     struct Expression;
     struct Statement;
+    struct Variable;
     struct LiteralValueExpression;
     struct Binop;
     struct Condition;
@@ -61,26 +62,45 @@ namespace ast {
     };
 
     struct ExpressionVisitor {
-        virtual void visit(LiteralValueExpression&) = 0;
-        virtual void visit(Binop&) = 0;
-        virtual void visit(Condition&) = 0;
-        virtual void visit(Call&) = 0;
+        virtual void* visit(Variable&) = 0;
+        virtual void* visit(LiteralValueExpression&) = 0;
+        virtual void* visit(Binop&) = 0;
+        virtual void* visit(Condition&) = 0;
+        virtual void* visit(Call&) = 0;
     };
 
     struct Expression : public Node {
-        virtual void accept(ExpressionVisitor&) = 0;
+        virtual void* accept(ExpressionVisitor&) = 0;
         virtual ~Expression() = default;
+    };
+
+    struct Variable : public Expression {
+        Token name;
+
+        Variable() = delete;
+        explicit Variable(const Token& name) : name(name) {}
+
+        void* accept(ExpressionVisitor& visitor) override {
+            return visitor.visit(*this);
+        }
+
+        [[nodiscard]]
+        std::string describe() const override {
+            std::ostringstream builder;
+            builder << "(var " << name.lexeme << ")";
+            return builder.str();
+        }
     };
 
     struct LiteralValueExpression : public Expression {
         Type type;
         Value value;
 
-        LiteralValueExpression() = default;
-        LiteralValueExpression(Type type, const Value& value) : type(type), value(value) {}
+        LiteralValueExpression() = delete;
+        LiteralValueExpression(Type type, const Value& value) : type(std::move(type)), value(value) {}
 
-        void accept(ExpressionVisitor& visitor) override {
-            visitor.visit(*this);
+        void* accept(ExpressionVisitor& visitor) override {
+            return visitor.visit(*this);
         }
 
         [[nodiscard]]
@@ -126,8 +146,8 @@ namespace ast {
             delete right;
         }
 
-        void accept(ExpressionVisitor& visitor) override {
-            visitor.visit(*this);
+        void* accept(ExpressionVisitor& visitor) override {
+            return visitor.visit(*this);
         }
 
         [[nodiscard]]
@@ -187,8 +207,8 @@ namespace ast {
             delete otherwise;
         }
 
-        void accept(ExpressionVisitor& visitor) override {
-            visitor.visit(*this);
+        void* accept(ExpressionVisitor& visitor) override {
+            return visitor.visit(*this);
         }
 
         [[nodiscard]]
@@ -210,8 +230,8 @@ namespace ast {
         Token name;
         std::vector<Expression*> arguments;
 
-        void accept(ExpressionVisitor& visitor) override {
-            visitor.visit(*this);
+        void* accept(ExpressionVisitor& visitor) override {
+            return visitor.visit(*this);
         }
 
         [[nodiscard]]

@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 //        std::cout << c << std::endl;
 //    Lexer lexer{&input, 0};
 //    std::cout << name(lexer.next().kind) << std::endl;
-    std::vector<char> input { '1', '+', '2', EOF };
+    std::vector<char> input { '1', '.', '0', '/', '2', EOF };
     Lexer lexer{&input, 0};
     Parser parser(&lexer);
 

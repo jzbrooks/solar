@@ -3,6 +3,7 @@
 #include <cassert>
 
 using namespace llvm;
+using namespace std;
 
 Module* CodeGen::compileModule(const char* id, ast::Program* program) {
     auto module = new Module(id, *context);
@@ -16,7 +17,7 @@ Module* CodeGen::compileModule(const char* id, ast::Program* program) {
     return module;
 }
 
-CodeGen::CodeGen() {
+CodeGen::CodeGen() : named_values(std::unordered_map<string, Value*>()){
     context = new LLVMContext();
     builder = new IRBuilder(*context);
 }
@@ -32,9 +33,8 @@ void StatementGenerator::visit(ast::ExpressionStatement& node) {
     auto fn = Function::Create(main, Function::ExternalLinkage, "__anon", module);
     BasicBlock *BB = BasicBlock::Create(module->getContext(), "entry", fn);
     builder->SetInsertPoint(BB);
-    node.expression->accept(expressionGenerator);
-
-    // Validate the generated code, checking for consistency.
+    auto value = (Value*)node.expression->accept(expressionGenerator);
+    builder->CreateRet(value);
     verifyFunction(*fn);
 }
 
@@ -46,41 +46,56 @@ void StatementGenerator::visit(ast::Block& block)
 
 void StatementGenerator::visit(ast::Function& function)
 {
-
 }
 
 ExpressionGenerator::ExpressionGenerator(llvm::Module* module, llvm::IRBuilder<>* builder) : module(module), builder(builder) {}
 
-void ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
+void* ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
+    if (expression.type.name.lexeme == ast::Type::Primitive::INT64.lexeme)
+    {
+        return ConstantInt::get(Type::getInt64Ty(module->getContext()), expression.value.int64);
+    }
 
-}
-
-void ExpressionGenerator::visit(ast::Binop &binop) {
-    // todo: robustness
-
-    auto left = (ast::LiteralValueExpression*)binop.left;
-    auto right = (ast::LiteralValueExpression*)binop.right;
-    auto operation = binop.operation;
-
-    if (left->type.name.lexeme == ast::Type::Primitive::INT64.lexeme) {
-        auto leftValue = ConstantInt::get(Type::getInt64Ty(module->getContext()), left->value.int64);
-        auto rightValue = ConstantInt::get(Type::getInt64Ty(module->getContext()), right->value.int64);
-        switch (operation) {
-            case ast::Operation::ADD: {
-                auto value = builder->CreateAdd(leftValue, rightValue);
-                builder->CreateRet(value);
-                break;
-            }
-            default:
-                assert(0);
-        }
+    if (expression.type.name.lexeme == ast::Type::Primitive::FLOAT64.lexeme)
+    {
+        return ConstantFP::get(Type::getDoubleTy(module->getContext()), expression.value.float64);
     }
 }
 
-void ExpressionGenerator::visit(ast::Condition &condition) {
+void* ExpressionGenerator::visit(ast::Binop &binop) {
+    auto left = (Value*)binop.left->accept(*this);
+    auto right = (Value*)binop.right->accept(*this);
+    auto operation = binop.operation;
+
+    switch (operation) {
+        case ast::Operation::ADD: {
+            return builder->CreateAdd(left, right);
+        }
+        case ast::Operation::SUBTRACT: {
+            return builder->CreateSub(left, right);
+        }
+        case ast::Operation::MULTIPLY: {
+            return builder->CreateMul(left, right);
+        }
+        case ast::Operation::DIVIDE: {
+            if (left->getType() == Type::getDoubleTy(module->getContext()) || right->getType() == Type::getDoubleTy(module->getContext())) {
+                return builder->CreateFDiv(left, right);
+            } else {
+                return builder->CreateUDiv(left, right);
+            }
+        }
+        default:
+            assert(0); // todo: codegen errors
+    }
+}
+
+void* ExpressionGenerator::visit(ast::Condition &condition) {
 
 }
 
-void ExpressionGenerator::visit(ast::Call& call) {
+void* ExpressionGenerator::visit(ast::Call& call) {
 
+}
+
+void* ExpressionGenerator::visit(ast::Variable& variable) {
 }
