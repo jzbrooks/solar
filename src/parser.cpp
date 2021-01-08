@@ -32,9 +32,7 @@ Program* Parser::parseProgram()
     vector<Statement*> statements;
     while (current.kind != Token::Kind::END)
     {
-        auto expression = (Expression*)this->expression(Precedence::LOWEST);
-        auto statement = new ExpressionStatement(expression);
-        statements.emplace_back(statement);
+        statements.emplace_back((Statement*)statement());
         advance();
     }
 
@@ -121,17 +119,7 @@ Node* Parser::number() { // NOLINT(readability-make-member-function-const)
 }
 
 Node* Parser::variable() {
-    auto var = current;
-    consume(Token::Kind::IDENTIFIER, "Expected an identifier.");
-
-    if (current.kind == Token::Kind::ASSIGN) {
-        advance();
-        auto initializer = (Expression*)expression(Precedence::LOWEST);
-        advance();
-        return new VariableDeclaration(var, Type::Primitive::BOOL, initializer);
-    }
-
-    return new Variable(var);
+    return new Variable(current);
 }
 
 Node* Parser::binary(Node* left) {
@@ -209,8 +197,16 @@ Node* Parser::block() {
 }
 
 Node* Parser::statement() {
-    // todo: useful until variable decls exist
-    return new ExpressionStatement( (Expression*)expression(Precedence::LOWEST));
+    // expression statements are a hack
+    if (lookahead.kind == Token::Kind::ASSIGN) {
+        auto var = current;
+        consume(Token::Kind::IDENTIFIER, "Expected an identifier.");
+        advance();
+        auto initializer = (Expression*) expression(Precedence::LOWEST);
+        return new VariableDeclaration(var, Type::Primitive::BOOL, initializer);
+    }
+
+    return new ExpressionStatement((Expression*)expression(Precedence::LOWEST));
 }
 
 void Parser::advance()
