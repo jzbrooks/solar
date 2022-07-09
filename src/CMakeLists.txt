@@ -1,5 +1,7 @@
 project(solar)
 
+set (CMAKE_CXX_STANDARD 20)
+
 find_package(LLVM REQUIRED CONFIG)
 
 set(CMAKE_GENERATOR_PLATFORM x64)

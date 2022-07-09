@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "ast.hpp"
 #include "lexer.hpp"
@@ -9,47 +9,51 @@
 
 class Parser;
 
-typedef ast::Node* (Parser::*PrefixRule)();
-typedef ast::Node* (Parser::*InfixRule)(ast::Node*);
+typedef ast::Node *(Parser::*PrefixRule)();
+typedef ast::Node *(Parser::*InfixRule)(ast::Node *);
 
 enum class Precedence {
-    LOWEST = 0,
-    EQUALS,
-    INEQUALITY,
-    TERM,
-    FACTOR,
-    CALL,
+  NONE = 0,
+  ASSIGNMENT,
+  EQUALS,
+  INEQUALITY,
+  TERM,
+  FACTOR,
+  CALL,
 };
 
 struct ParseRule {
-    PrefixRule prefix;
-    InfixRule infix;
-    Precedence precedence;
+  PrefixRule prefix;
+  InfixRule infix;
+  Precedence precedence;
 };
 
 class Parser {
-    Lexer* lexer;
-    Token lookahead{};
-    Token current{};
-    std::vector<std::string> errors;
-    std::unordered_map<Token::Kind, ParseRule> rules;
+  Lexer *lexer;
+  Token current{};
+  Token previous{};
+  std::vector<std::string> errors;
+  std::unordered_map<Token::Kind, ParseRule> rules;
 
-    ast::Node* number();
-    ast::Node* variable();
-    ast::Node* binary(ast::Node*);
-    ast::Node* conditional();
-    ast::Node* expression(Precedence precedence);
-    ast::Node* function();
-    ast::Node* block();
-    ast::Node* statement();
+  ast::Node *number();
+  ast::Node *variable();
+  ast::Node *binary(ast::Node *);
+  ast::Node *conditional();
+  ast::Node *expression(Precedence precedence);
+  ast::Node *function();
+  ast::Node *block();
+  ast::Node *statement();
+  ast::Node *ret();
+  ast::Node *call(ast::Node *);
+  ast::Node *str();
+  ast::Node *assignment(ast::Node *);
 
-    void advance();
-    void consume(Token::Kind kind, const std::string& message);
-    void error(const std::string& message);
-    void error(const Token& token, const std::string& message);
+  void advance();
+  void consume(Token::Kind kind, const std::string &message);
+  void error(const std::string &message);
+  void error(const Token &token, const std::string &message);
 
 public:
-    explicit Parser(Lexer* lexer);
-    ast::Program* parseProgram();
+  explicit Parser(Lexer *lexer);
+  ast::Program *parse_program();
 };
-

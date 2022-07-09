@@ -6,368 +6,392 @@
 #include "token.hpp"
 
 namespace ast {
-    struct Node;
-    struct Expression;
-    struct Statement;
-    struct Variable;
-    struct LiteralValueExpression;
-    struct Binop;
-    struct Condition;
-    struct Call;
-    struct VariableDeclaration;
-    struct FunctionPrototype;
-    struct ExpressionStatement;
-    struct Block;
-    struct Function;
+struct Node;
+struct Expression;
+struct Statement;
+struct Variable;
+struct LiteralValueExpression;
+struct Binop;
+struct Condition;
+struct Call;
+struct StringLiteral;
+struct VariableDeclaration;
+struct FunctionPrototype;
+struct ExpressionStatement;
+struct Block;
+struct Function;
+struct Return;
 
-    struct Type {
-        Token name;
+struct Type {
+  Token name;
 
-        struct Primitive {
-            static Token BOOL;
-            static Token INT32;
-            static Token INT64;
-            static Token UINT32;
-            static Token UINT64;
-            static Token FLOAT32;
-            static Token FLOAT64;
-        };
-    };
+  struct Primitive {
+    static Token BOOL;
+    static Token INT32;
+    static Token INT64;
+    static Token UINT32;
+    static Token UINT64;
+    static Token FLOAT32;
+    static Token FLOAT64;
+  };
+};
 
-    union Value {
-        bool boolean;
-        unsigned int uint32;
-        int int32;
-        float float32;
-        long int64;
-        unsigned long long uint64;
-        double float64;
-    };
+union Value {
+  bool boolean;
+  unsigned int uint32;
+  int int32;
+  float float32;
+  long int64;
+  unsigned long long uint64;
+  double float64;
+};
 
-    enum class Operation {
-        ADD,
-        SUBTRACT,
-        MULTIPLY,
-        DIVIDE,
-        COMPARE_IS_EQUAL,
-        COMPARE_IS_LESS,
-        COMPARE_IS_LESS_OR_EQUAL,
-        COMPARE_IS_GREATER,
-        COMPARE_IS_GREATER_OR_EQUAL,
-        COMPARE_IS_NOT_EQUAL,
-    };
+enum class Operation {
+  ADD,
+  SUBTRACT,
+  MULTIPLY,
+  DIVIDE,
+  COMPARE_IS_EQUAL,
+  COMPARE_IS_LESS,
+  COMPARE_IS_LESS_OR_EQUAL,
+  COMPARE_IS_GREATER,
+  COMPARE_IS_GREATER_OR_EQUAL,
+  COMPARE_IS_NOT_EQUAL,
+};
 
-    struct Node {
-        [[nodiscard]]
-        virtual std::string describe() const = 0;
-    };
+struct Node {
+  [[nodiscard]] virtual std::string describe() const = 0;
+};
 
-    struct ExpressionVisitor {
-        virtual void* visit(Variable&) = 0;
-        virtual void* visit(LiteralValueExpression&) = 0;
-        virtual void* visit(Binop&) = 0;
-        virtual void* visit(Condition&) = 0;
-        virtual void* visit(Call&) = 0;
-    };
+struct ExpressionVisitor {
+  virtual void *visit(Variable &) = 0;
+  virtual void *visit(LiteralValueExpression &) = 0;
+  virtual void *visit(Binop &) = 0;
+  virtual void *visit(Condition &) = 0;
+  virtual void *visit(Call &) = 0;
+  virtual void *visit(StringLiteral &) = 0;
+};
 
-    struct Expression : public Node {
-        virtual void* accept(ExpressionVisitor&) = 0;
-        virtual ~Expression() = default;
-    };
+struct Expression : public Node {
+  virtual void *accept(ExpressionVisitor &) = 0;
+  virtual ~Expression() = default;
+};
 
-    struct Variable : public Expression {
-        Token name;
+struct Variable : public Expression {
+  Token name;
 
-        Variable() = delete;
-        explicit Variable(const Token& name) : name(name) {}
+  Variable() = delete;
+  explicit Variable(const Token &name) : name(name) {}
 
-        void* accept(ExpressionVisitor& visitor) override {
-            return visitor.visit(*this);
-        }
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(var " << name.lexeme << ")";
-            return builder.str();
-        }
-    };
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(var " << name.lexeme << ")";
+    return builder.str();
+  }
+};
 
-    struct LiteralValueExpression : public Expression {
-        Type type;
-        Value value;
+struct StringLiteral : public Expression {
+  std::string value;
 
-        LiteralValueExpression() = delete;
-        LiteralValueExpression(Type type, const Value& value) : type(std::move(type)), value(value) {}
+  StringLiteral() = delete;
+  explicit StringLiteral(std::string value) : value(std::move(value)) {}
 
-        void* accept(ExpressionVisitor& visitor) override {
-            return visitor.visit(*this);
-        }
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(string-literal<" << value << ">)";
+    return builder.str();
+  }
+};
 
-            builder << "(" << type.name.lexeme << "<";
+struct LiteralValueExpression : public Expression {
+  Type type;
+  Value value;
 
-            if (type.name.lexeme == Type::Primitive::BOOL.lexeme) {
-                builder << value.boolean;
-            } else if (type.name.lexeme == Type::Primitive::INT32.lexeme) {
-                builder << value.int32;
-            } else if (type.name.lexeme == Type::Primitive::INT64.lexeme) {
-                builder << value.int64;
-            } else if (type.name.lexeme == Type::Primitive::FLOAT32.lexeme) {
-                builder << value.float32;
-            } else if (type.name.lexeme == Type::Primitive::FLOAT64.lexeme) {
-                builder << value.float64;
-            } else if (type.name.lexeme == Type::Primitive::UINT32.lexeme) {
-                builder << value.uint32;
-            } else if (type.name.lexeme == Type::Primitive::UINT64.lexeme) {
-                builder << value.uint64;
-            }
+  LiteralValueExpression() = delete;
+  LiteralValueExpression(Type type, Value value)
+      : type(std::move(type)), value(value) {}
 
-            builder << ">)";
-            return builder.str();
-        }
-    };
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-    struct Binop : public Expression {
-        Expression* left;
-        Expression* right;
-        Operation operation;
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
 
-        Binop(
-            Expression* left,
-            Expression* right,
-            Operation operation
-        ) : left(left), right(right), operation(operation) {}
+    builder << "(" << type.name.lexeme << "<";
 
-        ~Binop() override {
-            delete left;
-            delete right;
-        }
+    if (type.name.lexeme == Type::Primitive::BOOL.lexeme) {
+      builder << value.boolean;
+    } else if (type.name.lexeme == Type::Primitive::INT32.lexeme) {
+      builder << value.int32;
+    } else if (type.name.lexeme == Type::Primitive::INT64.lexeme) {
+      builder << value.int64;
+    } else if (type.name.lexeme == Type::Primitive::FLOAT32.lexeme) {
+      builder << value.float32;
+    } else if (type.name.lexeme == Type::Primitive::FLOAT64.lexeme) {
+      builder << value.float64;
+    } else if (type.name.lexeme == Type::Primitive::UINT32.lexeme) {
+      builder << value.uint32;
+    } else if (type.name.lexeme == Type::Primitive::UINT64.lexeme) {
+      builder << value.uint64;
+    }
 
-        void* accept(ExpressionVisitor& visitor) override {
-            return visitor.visit(*this);
-        }
+    builder << ">)";
+    return builder.str();
+  }
+};
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(";
-            switch (operation) {
-                case Operation::ADD:
-                    builder << '+';
-                    break;
-                case Operation::SUBTRACT:
-                    builder << '-';
-                    break;
-                case Operation::MULTIPLY:
-                    builder << '*';
-                    break;
-                case Operation::DIVIDE:
-                    builder << '/';
-                    break;
-                case Operation::COMPARE_IS_EQUAL:
-                    builder << "==";
-                    break;
-                case Operation::COMPARE_IS_NOT_EQUAL:
-                    builder << "!=";
-                    break;
-                case Operation::COMPARE_IS_LESS:
-                    builder << "<";
-                    break;
-                case Operation::COMPARE_IS_LESS_OR_EQUAL:
-                    builder << "<=";
-                    break;
-                case Operation::COMPARE_IS_GREATER:
-                    builder << ">";
-                    break;
-                case Operation::COMPARE_IS_GREATER_OR_EQUAL:
-                    builder << ">=";
-                    break;
-            }
+struct Binop : public Expression {
+  Expression *left;
+  Expression *right;
+  Operation operation;
 
-            builder << " " << left->describe() << " " << right->describe() << ")";
-            return builder.str();
-        }
-    };
+  Binop(Expression *left, Expression *right, Operation operation)
+      : left(left), right(right), operation(operation) {}
 
-    struct Condition : public Expression
-    {
-        Expression* condition;
-        Expression* then;
-        Expression* otherwise;
+  ~Binop() override {
+    delete left;
+    delete right;
+  }
 
-        Condition() = default;
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-        ~Condition() override
-        {
-            delete condition;
-            delete then;
-            delete otherwise;
-        }
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(";
+    switch (operation) {
+    case Operation::ADD:
+      builder << '+';
+      break;
+    case Operation::SUBTRACT:
+      builder << '-';
+      break;
+    case Operation::MULTIPLY:
+      builder << '*';
+      break;
+    case Operation::DIVIDE:
+      builder << '/';
+      break;
+    case Operation::COMPARE_IS_EQUAL:
+      builder << "==";
+      break;
+    case Operation::COMPARE_IS_NOT_EQUAL:
+      builder << "!=";
+      break;
+    case Operation::COMPARE_IS_LESS:
+      builder << "<";
+      break;
+    case Operation::COMPARE_IS_LESS_OR_EQUAL:
+      builder << "<=";
+      break;
+    case Operation::COMPARE_IS_GREATER:
+      builder << ">";
+      break;
+    case Operation::COMPARE_IS_GREATER_OR_EQUAL:
+      builder << ">=";
+      break;
+    }
 
-        void* accept(ExpressionVisitor& visitor) override {
-            return visitor.visit(*this);
-        }
+    builder << " " << left->describe() << " " << right->describe() << ")";
+    return builder.str();
+  }
+};
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(if " << condition->describe()
-                    << " then " << then->describe();
-            if (otherwise)
-            {
-                builder << " otherwise " << otherwise->describe();
-            }
+struct Condition : public Expression {
+  Expression *condition;
+  Expression *then;
+  Expression *otherwise;
 
-            builder << ")";
-            return builder.str();
-        }
-    };
+  Condition() = default;
 
-    struct Call : public Expression {
-        Token name;
-        std::vector<Expression*> arguments;
+  ~Condition() override {
+    delete condition;
+    delete then;
+    delete otherwise;
+  }
 
-        void* accept(ExpressionVisitor& visitor) override {
-            return visitor.visit(*this);
-        }
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(fn-call " << name.lexeme << ": ";
-            for (const auto& expression : arguments) {
-                builder << expression->describe();
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(if " << condition->describe() << " then " << then->describe();
+    if (otherwise) {
+      builder << " otherwise " << otherwise->describe();
+    }
 
-                if (&expression != &arguments.back()) {
-                    builder << ", ";
-                }
-            }
+    builder << ")";
+    return builder.str();
+  }
+};
 
-            builder << ")";
-            return builder.str();
-        }
-    };
+struct Call : public Expression {
+  Token name;
+  std::vector<Expression *> arguments;
 
-    struct StatementVisitor {
-        virtual void visit(VariableDeclaration&) = 0;
-        virtual void visit(ExpressionStatement&) = 0;
-        virtual void visit(FunctionPrototype&) = 0;
-        virtual void visit(Function&) = 0;
-        virtual void visit(Block&) = 0;
-    };
+  explicit Call(const Token &name, std::vector<Expression *> arguments)
+      : name(name), arguments(std::move(arguments)){};
 
-    struct Statement : public Node {
-        virtual void accept(StatementVisitor &) = 0;
-    };
+  ~Call() override {
+    for (auto argument : arguments) {
+      delete argument;
+    }
+  }
 
-    struct VariableDeclaration : public Statement {
-        Token name;
-        Token type;
-        Expression* initializer;
+  void *accept(ExpressionVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
 
-        VariableDeclaration() = delete;
-        VariableDeclaration(Token name, Token type, Expression* initializer) : name(name), type(type), initializer(initializer) {}
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(fn-call " << name.lexeme << ": ";
+    for (const auto &expression : arguments) {
+      builder << expression->describe();
 
-        void accept(StatementVisitor& visitor) override {
-            visitor.visit(*this);
-        }
+      if (&expression != &arguments.back()) {
+        builder << ", ";
+      }
+    }
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(var-decl " << type.lexeme << "<" << name.lexeme << "> " << initializer->describe() << ")";
-            return builder.str();
-        }
-    };
+    builder << ")";
+    return builder.str();
+  }
+};
 
-    struct ExpressionStatement : public Statement {
-        Expression* expression;
+struct StatementVisitor {
+  virtual void visit(VariableDeclaration &) = 0;
+  virtual void visit(ExpressionStatement &) = 0;
+  virtual void visit(FunctionPrototype &) = 0;
+  virtual void visit(Function &) = 0;
+  virtual void visit(Block &) = 0;
+  virtual void visit(Return &) = 0;
+};
 
-        explicit ExpressionStatement(Expression* expression) : expression(expression) {}
+struct Statement : public Node {
+  virtual void accept(StatementVisitor &) = 0;
+};
 
-        void accept(StatementVisitor& visitor) override {
-            visitor.visit(*this);
-        }
+struct VariableDeclaration : public Statement {
+  Token name;
+  Token type;
+  Expression *initializer;
 
-        [[nodiscard]]
-        std::string describe() const override {
-            return expression->describe();
-        }
-    };
+  VariableDeclaration() = delete;
+  VariableDeclaration(Token name, Token type, Expression *initializer)
+      : name(name), type(type), initializer(initializer) {}
 
-    struct Parameter {
-        Token name;
-        Token type;
-    };
+  void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
-    struct Block : public Statement {
-        std::vector<Statement*> statements;
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(var-decl " << type.lexeme << "<" << name.lexeme << "> "
+            << initializer->describe() << ")";
+    return builder.str();
+  }
+};
 
-        void accept(StatementVisitor& visitor) override {
-            visitor.visit(*this);
-        }
+struct ExpressionStatement : public Statement {
+  Expression *expression;
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(block " << std::endl;
-            for (const auto& statement : statements) {
-                builder << statement->describe() << std::endl;
-            }
-            builder << ")";
+  explicit ExpressionStatement(Expression *expression)
+      : expression(expression) {}
 
-            return builder.str();
-        }
-    };
+  void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
-    struct FunctionPrototype : public Statement {
-        Token name;
-        std::vector<Parameter> parameterList;
+  [[nodiscard]] std::string describe() const override {
+    return expression->describe();
+  }
+};
 
-        void accept(StatementVisitor& visitor) override {
-            visitor.visit(*this);
-        }
+struct Parameter {
+  Token name;
+  Token type;
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(fn-type " << name.lexeme << "(";
-            for (const auto& parameter : parameterList) {
-                builder << parameter.name.lexeme << ":" << parameter.type.lexeme;
-                if (&parameter != &parameterList.back()) builder << ", ";
-            }
-            builder << ") ";
+  Parameter(const Token &name, const Token &type) : name(name), type(type) {}
+};
 
-            return builder.str();
-        }
-    };
+struct Block : public Statement {
+  std::vector<Statement *> statements;
 
-    struct Function : public Statement {
-        FunctionPrototype* prototype;
-        Block* body;
+  void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
-        void accept(StatementVisitor& visitor) override {
-            visitor.visit(*this);
-        }
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(block " << std::endl;
+    for (const auto &statement : statements) {
+      builder << statement->describe() << std::endl;
+    }
+    builder << ")";
 
-        [[nodiscard]]
-        std::string describe() const override {
-            std::ostringstream builder;
-            builder << "(fn-def "
-                    << prototype->describe()
-                    << " "
-                    << body->describe()
-                    << ")";
+    return builder.str();
+  }
+};
 
-            return builder.str();
-        }
-    };
+struct FunctionPrototype : public Statement {
+  Token name;
+  std::vector<Parameter> parameter_list;
+  Token return_type;
 
-    struct Program {
-        std::vector<Statement*> statements;
-    };
-}
+  void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
+
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(fn-type " << name.lexeme << "(";
+    for (const auto &parameter : parameter_list) {
+      builder << parameter.name.lexeme << ":" << parameter.type.lexeme;
+      if (&parameter != &parameter_list.back())
+        builder << ", ";
+    }
+    builder << ") ";
+
+    return builder.str();
+  }
+};
+
+struct Function : public Statement {
+  FunctionPrototype *prototype;
+  Block *body;
+
+  void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
+
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(fn-def " << prototype->describe() << " " << body->describe()
+            << ")";
+
+    return builder.str();
+  }
+};
+
+struct Return : public Statement {
+  Expression *return_value;
+
+  Return() = delete;
+  explicit Return(Expression *return_value) : return_value(return_value) {}
+
+  void accept(StatementVisitor &visitor) override {
+    return visitor.visit(*this);
+  }
+
+  [[nodiscard]] std::string describe() const override {
+    std::ostringstream builder;
+    builder << "(return " << return_value->describe() << ")";
+    return builder.str();
+  }
+};
+
+struct Program {
+  std::vector<Statement *> statements;
+};
+} // namespace ast
