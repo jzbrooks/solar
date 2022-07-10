@@ -174,8 +174,8 @@ void *ExpressionGenerator::visit(ast::Binop &binop) {
 }
 
 void *ExpressionGenerator::visit(ast::Condition &condition) {
-  auto if_condition = static_cast<Value*>(condition.condition->accept(*this));
-  assert( if_condition );
+  auto if_condition = static_cast<Value *>(condition.condition->accept(*this));
+  assert(if_condition);
 
   if_condition->setName("if_condition");
 
@@ -188,8 +188,8 @@ void *ExpressionGenerator::visit(ast::Condition &condition) {
   builder->CreateCondBr(if_condition, then_block, otherwise_block);
   builder->SetInsertPoint(then_block);
 
-  auto then_value = static_cast<Value*>(condition.then->accept(*this));
-  assert( then_value );
+  auto then_value = static_cast<Value *>(condition.then->accept(*this));
+  assert(then_value);
 
   builder->CreateBr(merge_block);
 
@@ -200,8 +200,9 @@ void *ExpressionGenerator::visit(ast::Condition &condition) {
   function->getBasicBlockList().push_back(otherwise_block);
   builder->SetInsertPoint(otherwise_block);
 
-  auto otherwise_value = static_cast<Value*>(condition.otherwise->accept(*this));
-  assert( otherwise_value );
+  auto otherwise_value =
+      static_cast<Value *>(condition.otherwise->accept(*this));
+  assert(otherwise_value);
 
   builder->CreateBr(merge_block);
   otherwise_block = builder->GetInsertBlock();
