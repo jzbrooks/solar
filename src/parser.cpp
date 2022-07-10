@@ -268,12 +268,15 @@ Node *Parser::block() {
 }
 
 Node *Parser::statement() {
-  if (current.kind == Token::Kind::FUNC) {
+  switch (current.kind) {
+  case Token::Kind::FUNC:
     return function();
+  case Token::Kind::RETURN:
+    return ret();
+  default:
+    auto expr = (Expression *)expression(Precedence::ASSIGNMENT);
+    return new ExpressionStatement(expr);
   }
-
-  auto expr = (Expression *)expression(Precedence::ASSIGNMENT);
-  return new ExpressionStatement(expr);
 }
 
 Node *Parser::call(Node *left) {

@@ -71,6 +71,8 @@ void StatementGenerator::visit(ast::Function &function) {
       argument_types.emplace_back(Type::getDoubleTy(module->getContext()));
     } else if (parameter.type == ast::Type::Primitive::INT32) {
       argument_types.emplace_back(Type::getInt32Ty(module->getContext()));
+    } else if (parameter.type == ast::Type::Primitive::INT64) {
+      argument_types.emplace_back(Type::getInt64Ty(module->getContext()));
     }
   }
 
@@ -78,6 +80,8 @@ void StatementGenerator::visit(ast::Function &function) {
   auto return_type = Type::getVoidTy(module->getContext());
   if (function.prototype->return_type == ast::Type::Primitive::INT32) {
     return_type = Type::getInt32Ty(module->getContext());
+  } else if (function.prototype->return_type == ast::Type::Primitive::INT64) {
+    return_type = Type::getInt64Ty(module->getContext());
   }
 
   auto type = FunctionType::get(
@@ -158,12 +162,61 @@ void *ExpressionGenerator::visit(ast::Binop &binop) {
       return builder->CreateUDiv(left, right);
     }
   }
+  case ast::Operation::COMPARE_IS_EQUAL: {
+    return builder->CreateCmp(llvm::CmpInst::ICMP_EQ, left, right);
+  }
+  case ast::Operation::COMPARE_IS_LESS: {
+    return builder->CreateCmp(llvm::CmpInst::ICMP_SLT, left, right);
+  }
   default:
     assert(0); // todo: codegen errors
   }
 }
 
-void *ExpressionGenerator::visit(ast::Condition &condition) { exit(100); }
+void *ExpressionGenerator::visit(ast::Condition &condition) {
+  auto if_condition = static_cast<Value*>(condition.condition->accept(*this));
+  assert( if_condition );
+
+  if_condition->setName("if_condition");
+
+  auto function = builder->GetInsertBlock()->getParent();
+
+  auto then_block = BasicBlock::Create(module->getContext(), "then", function);
+  auto otherwise_block = BasicBlock::Create(module->getContext(), "else");
+  auto merge_block = BasicBlock::Create(module->getContext(), "merge");
+
+  builder->CreateCondBr(if_condition, then_block, otherwise_block);
+  builder->SetInsertPoint(then_block);
+
+  auto then_value = static_cast<Value*>(condition.then->accept(*this));
+  assert( then_value );
+
+  builder->CreateBr(merge_block);
+
+  // condition.then->accept(*this); can change the current block,
+  // so make sure we're tracking the previous
+  then_block = builder->GetInsertBlock();
+
+  function->getBasicBlockList().push_back(otherwise_block);
+  builder->SetInsertPoint(otherwise_block);
+
+  auto otherwise_value = static_cast<Value*>(condition.otherwise->accept(*this));
+  assert( otherwise_value );
+
+  builder->CreateBr(merge_block);
+  otherwise_block = builder->GetInsertBlock();
+
+  function->getBasicBlockList().push_back(merge_block);
+  builder->SetInsertPoint(merge_block);
+
+  // Then and else must be the same type
+  auto phi = builder->CreatePHI(then_value->getType(), 2, "if_expr_tmp");
+
+  phi->addIncoming(then_value, then_block);
+  phi->addIncoming(otherwise_value, otherwise_block);
+
+  return phi;
+}
 
 void *ExpressionGenerator::visit(ast::Call &call) {
   auto function = module->getFunction(call.name.lexeme);
