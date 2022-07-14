@@ -89,6 +89,18 @@ TEST_CASE("Parse term/factor precedence expression. ", "[parser]") {
           "(+ (i64<1>) (/ (i64<2>) (i64<3>)))");
 }
 
+TEST_CASE("Parse expression grouping. ", "[parser]") {
+  std::vector<char> input{'(', '1', '+', '2', ')', '/', '3', EOF};
+  Lexer lexer{&input, 0};
+  Parser parser(&lexer);
+
+  auto program = parser.parse_program();
+
+  auto statement = (ast::ExpressionStatement *)program->statements.front();
+  REQUIRE(statement->expression->describe() ==
+          "(/ (+ (i64<1>) (i64<2>)) (i64<3>))");
+}
+
 TEST_CASE("Parse comparison without else. ", "[parser]") {
   std::vector<char> input{'1', '=', '=', '3', EOF};
   Lexer lexer{&input, 0};
@@ -156,16 +168,15 @@ TEST_CASE("Parse functions with arguments ", "[parser]") {
 }
 
 TEST_CASE("Parse variable declarations. ", "[parser]") {
-  std::vector<char> input{'c', 'o', 'u', 'n', 't', '=', '0', EOF};
+  std::vector<char> input{'v', 'a', 'r', ' ', 'c', 'o', 'u', 'n', 't',
+                          ':', 'i', '3', '2', ' ', '=', '0', EOF};
   Lexer lexer{&input, 0};
   Parser parser(&lexer);
 
   auto program = parser.parse_program();
 
   auto statement = program->statements.front();
-  REQUIRE(statement->describe() ==
-          "(var-decl bool<count> (i64<0>))"); // this type should be corrected
-                                              // by inference
+  REQUIRE(statement->describe() == "(var-decl i32<count> (i64<0>))");
 }
 
 TEST_CASE("Parse string literals. ", "[parser]") {

@@ -8,7 +8,6 @@ using namespace std;
 Parser::Parser(Lexer* lexer)
     : rules {
         { Token::Kind::END, ParseRule { nullptr, nullptr, Precedence::NONE } },
-        { Token::Kind::ASSIGN, ParseRule { nullptr, &Parser::assignment, Precedence::ASSIGNMENT } },
         { Token::Kind::EQUAL, ParseRule { nullptr, &Parser::binary, Precedence::EQUALS } },
         { Token::Kind::FUNC, ParseRule { &Parser::function, nullptr, Precedence::NONE } },
         { Token::Kind::GREATER, ParseRule { nullptr, &Parser::binary, Precedence::INEQUALITY } },
@@ -17,7 +16,7 @@ Parser::Parser(Lexer* lexer)
         { Token::Kind::IF, ParseRule { &Parser::conditional, nullptr, Precedence::NONE } },
         { Token::Kind::LESS, ParseRule { nullptr, &Parser::binary, Precedence::INEQUALITY } },
         { Token::Kind::LESS_EQUAL, ParseRule { nullptr, &Parser::binary, Precedence::INEQUALITY } },
-        { Token::Kind::LPAREN, ParseRule { nullptr, &Parser::call, Precedence::CALL } },
+        { Token::Kind::LPAREN, ParseRule { &Parser::grouping, &Parser::call, Precedence::CALL } },
         { Token::Kind::MINUS, ParseRule { nullptr, &Parser::binary, Precedence::TERM } },
         { Token::Kind::NOT_EQUAL, ParseRule { nullptr, &Parser::binary, Precedence::EQUALS } },
         { Token::Kind::NUMBER, ParseRule { &Parser::number, nullptr, Precedence::NONE } },
@@ -273,6 +272,8 @@ Node *Parser::statement() {
     return function();
   case Token::Kind::RETURN:
     return ret();
+  case Token::Kind::VAR:
+    return assignment();
   default:
     auto expr = (Expression *)expression(Precedence::ASSIGNMENT);
     return new ExpressionStatement(expr);
@@ -308,11 +309,25 @@ Node *Parser::call(Node *left) {
   return new ast::Call(name->name, argument_expressions);
 }
 
-ast::Node *Parser::assignment(ast::Node *variable) {
-  auto var = dynamic_cast<Variable *>(variable);
+ast::Node *Parser::assignment() {
+  consume(Token::Kind::VAR, "Expected let for variable declaration");
+  auto name = current;
+  consume(Token::Kind::IDENTIFIER, "Expected a variable name");
+  consume(Token::Kind::COLON,
+          "Expected a colon between variable name and type");
+  auto type = current;
+  consume(Token::Kind::IDENTIFIER, "Expected a type name");
+  consume(Token::Kind::ASSIGN, "Expected an initializer");
   auto initializer =
       dynamic_cast<Expression *>(expression(Precedence::ASSIGNMENT));
-  return new VariableDeclaration(var->name, Type::Primitive::BOOL, initializer);
+
+  return new VariableDeclaration(name, type, initializer);
+}
+
+ast::Node *Parser::grouping() {
+  auto expr = expression(Precedence::ASSIGNMENT);
+  consume(Token::Kind::RPAREN, "Expected ')' after expression");
+  return expr;
 }
 
 void Parser::advance() {

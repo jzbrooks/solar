@@ -46,7 +46,8 @@ class Parser {
   ast::Node *ret();
   ast::Node *call(ast::Node *);
   ast::Node *str();
-  ast::Node *assignment(ast::Node *);
+  ast::Node *assignment();
+  ast::Node *grouping();
 
   void advance();
   void consume(Token::Kind kind, const std::string &message);

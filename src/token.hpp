@@ -14,6 +14,7 @@ struct Token {
     FUNC,
     IF,
     ELSE,
+    VAR,
 
     PLUS,
     MINUS,

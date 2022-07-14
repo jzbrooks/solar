@@ -5,10 +5,9 @@
 #include <unordered_map>
 
 static std::unordered_map<std::string, Token::Kind> reserved_words{
-    {"if", Token::Kind::IF},
-    {"else", Token::Kind::ELSE},
-    {"func", Token::Kind::FUNC},
-    {"return", Token::Kind::RETURN},
+    {"if", Token::Kind::IF},     {"else", Token::Kind::ELSE},
+    {"func", Token::Kind::FUNC}, {"return", Token::Kind::RETURN},
+    {"var", Token::Kind::VAR},
 };
 
 Token Lexer::next() {

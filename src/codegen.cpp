@@ -1,13 +1,61 @@
 #include "codegen.hpp"
 
+#include "llvm/ADT/APFloat.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Utils.h"
+
 #include <cassert>
 
 using namespace llvm;
 using namespace std;
 
-CodeGen::CodeGen() : named_values(new std::unordered_map<string, Value *>()) {
+static Type *llvm_type_for(const Token &type_token,
+                           llvm::LLVMContext &context) {
+  if (type_token == ast::Type::Primitive::INT64 ||
+      type_token == ast::Type::Primitive::UINT64) {
+    return Type::getInt64Ty(context);
+  } else if (type_token == ast::Type::Primitive::INT32 ||
+             type_token == ast::Type::Primitive::UINT32) {
+    return Type::getInt32Ty(context);
+  } else if (type_token == ast::Type::Primitive::FLOAT64) {
+    return Type::getDoubleTy(context);
+  } else if (type_token == ast::Type::Primitive::FLOAT32) {
+    return Type::getFloatTy(context);
+  } else if (type_token == ast::Type::Primitive::BOOL) {
+    return Type::getInt1Ty(context);
+  }
+
+  assert(0); // todo: user defined types
+  return nullptr;
+}
+
+static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
+                                             Function *function, Type *type,
+                                             const Twine &name) {
+  IRBuilder<> temp_builder(&function->getEntryBlock(),
+                           function->getEntryBlock().begin());
+  return temp_builder.CreateAlloca(type, nullptr, name);
+}
+
+CodeGen::CodeGen()
+    : named_values(new std::unordered_map<string, AllocaInst *>()) {
   context = new LLVMContext();
   builder = new IRBuilder(*context);
+}
+
+CodeGen::~CodeGen() {
+  delete context;
+  delete builder;
+  delete named_values;
 }
 
 Module *CodeGen::compile_module(const char *id, ast::Program *program) {
@@ -36,16 +84,34 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program) {
 StatementGenerator::StatementGenerator(
     Module *module, llvm::IRBuilder<> *builder,
     ExpressionGenerator &expressionGenerator,
-    std::unordered_map<std::string, llvm::Value *> *named_values)
+    std::unordered_map<std::string, llvm::AllocaInst *> *named_values)
     : module(module), builder(builder),
-      expressionGenerator(expressionGenerator), named_values(named_values) {}
+      expressionGenerator(expressionGenerator), named_values(named_values),
+      function_pass_manager(new legacy::FunctionPassManager(module)) {
+  // Convert alloca instructions to registers
+  function_pass_manager->add(createPromoteMemoryToRegisterPass());
+  function_pass_manager->add(createGVNPass());
+  function_pass_manager->add(createReassociatePass());
+  function_pass_manager->add(createCFGSimplificationPass());
+  function_pass_manager->add(createDeadCodeEliminationPass());
+  function_pass_manager->add(createInstructionCombiningPass());
+  function_pass_manager->doInitialization();
+}
 
 void StatementGenerator::visit(ast::VariableDeclaration &node) {
-  named_values->insert({node.name.lexeme, nullptr});
+  auto type = llvm_type_for(node.type, module->getContext());
+  auto function = builder->GetInsertBlock()->getParent();
+  IRBuilder<> temp_builder(&function->getEntryBlock(),
+                           function->getEntryBlock().begin());
+  auto alloca =
+      create_entry_block_alloca(*builder, function, type, node.name.lexeme);
+  named_values->insert({node.name.lexeme, alloca});
 
   if (node.initializer) {
-    named_values->find(node.name.lexeme)->second =
-        (Value *)node.initializer->accept(expressionGenerator);
+    auto value = (Value *)node.initializer->accept(expressionGenerator);
+    builder->CreateStore(value, alloca);
+  } else {
+    assert(0); // todo: initializers are required for now?
   }
 }
 
@@ -67,21 +133,14 @@ void StatementGenerator::visit(ast::Function &function) {
   // todo: check for prototype in module
   std::vector<Type *> argument_types;
   for (const auto &parameter : function.prototype->parameter_list) {
-    if (parameter.type == ast::Type::Primitive::FLOAT64) {
-      argument_types.emplace_back(Type::getDoubleTy(module->getContext()));
-    } else if (parameter.type == ast::Type::Primitive::INT32) {
-      argument_types.emplace_back(Type::getInt32Ty(module->getContext()));
-    } else if (parameter.type == ast::Type::Primitive::INT64) {
-      argument_types.emplace_back(Type::getInt64Ty(module->getContext()));
-    }
+    argument_types.push_back(
+        llvm_type_for(parameter.type, module->getContext()));
   }
 
-  // todo: incomplete return type handling
-  auto return_type = Type::getVoidTy(module->getContext());
-  if (function.prototype->return_type == ast::Type::Primitive::INT32) {
-    return_type = Type::getInt32Ty(module->getContext());
-  } else if (function.prototype->return_type == ast::Type::Primitive::INT64) {
-    return_type = Type::getInt64Ty(module->getContext());
+  auto return_type =
+      llvm_type_for(function.prototype->return_type, module->getContext());
+  if (!return_type) {
+    return_type = Type::getVoidTy(module->getContext());
   }
 
   auto type = FunctionType::get(
@@ -98,20 +157,25 @@ void StatementGenerator::visit(ast::Function &function) {
     func->getArg(i)->setName(function.prototype->parameter_list[i].name.lexeme);
   }
 
-  for (auto const &arg : func->args())
-    (*named_values)[arg.getName().str()] = (Value *)&arg;
+  named_values->clear();
+  for (auto &arg : func->args()) {
+    auto alloca =
+        create_entry_block_alloca(*builder, func, arg.getType(), arg.getName());
+    builder->CreateStore(&arg, alloca);
+    named_values->insert_or_assign(arg.getName().str(), alloca);
+  }
 
   function.body->accept(*this);
 
-  // todo: long-term, this might not work? It might be better if each
-  //  block were responsible for its own return statements.
-  if (entry->getTerminator() == nullptr) {
+  if (func->getBasicBlockList().back().getTerminator() == nullptr) {
     builder->CreateRetVoid();
   }
 
   //#ifdef DEBUG
   verifyFunction(*func);
   //#endif
+
+  function_pass_manager->run(*func);
 }
 
 void StatementGenerator::visit(ast::Return &return_statement) {
@@ -122,18 +186,23 @@ void StatementGenerator::visit(ast::Return &return_statement) {
 
 ExpressionGenerator::ExpressionGenerator(
     llvm::Module *module, llvm::IRBuilder<> *builder,
-    unordered_map<string, Value *> *named_values)
+    unordered_map<string, llvm::AllocaInst *> *named_values)
     : module(module), builder(builder), named_values(named_values) {}
 
 void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
-  if (expression.type.name.lexeme == ast::Type::Primitive::INT64.lexeme) {
-    return ConstantInt::get(Type::getInt64Ty(module->getContext()),
-                            expression.value.int64);
-  }
+  auto type = llvm_type_for(expression.type.name, module->getContext());
+  auto size = type->getScalarSizeInBits();
 
-  if (expression.type.name.lexeme == ast::Type::Primitive::FLOAT64.lexeme) {
-    return ConstantFP::get(Type::getDoubleTy(module->getContext()),
-                           expression.value.float64);
+  switch (type->getTypeID()) {
+  case llvm::Type::TypeID::IntegerTyID:
+    return ConstantInt::get(type, size == 64 ? expression.value.int64
+                                             : expression.value.int32);
+  case llvm::Type::TypeID::FloatTyID:
+    return ConstantFP::get(type, expression.value.float32);
+  case llvm::Type::TypeID::DoubleTyID:
+    return ConstantFP::get(type, expression.value.float64);
+  default:
+    assert(0);
   }
 
   return nullptr;
@@ -146,27 +215,69 @@ void *ExpressionGenerator::visit(ast::Binop &binop) {
 
   switch (operation) {
   case ast::Operation::ADD: {
-    return builder->CreateAdd(left, right);
+
+    return left->getType()->isFloatingPointTy()
+               ? builder->CreateFAdd(left, right)
+               : builder->CreateAdd(left, right);
   }
   case ast::Operation::SUBTRACT: {
-    return builder->CreateSub(left, right);
+    return left->getType()->isFloatingPointTy()
+               ? builder->CreateFSub(left, right)
+               : builder->CreateSub(left, right);
   }
   case ast::Operation::MULTIPLY: {
-    return builder->CreateMul(left, right);
+    return left->getType()->isFloatingPointTy()
+               ? builder->CreateFMul(left, right)
+               : builder->CreateMul(left, right);
   }
   case ast::Operation::DIVIDE: {
-    if (left->getType() == Type::getDoubleTy(module->getContext()) ||
-        right->getType() == Type::getDoubleTy(module->getContext())) {
-      return builder->CreateFDiv(left, right);
-    } else {
-      return builder->CreateUDiv(left, right);
-    }
+    auto isLeftFloat = left->getType()->isFloatingPointTy();
+    auto isRightFloat = right->getType()->isFloatingPointTy();
+
+    return isLeftFloat || isRightFloat ? builder->CreateFDiv(left, right)
+                                       : builder->CreateSDiv(left, right);
   }
   case ast::Operation::COMPARE_IS_EQUAL: {
-    return builder->CreateCmp(llvm::CmpInst::ICMP_EQ, left, right);
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_OEQ
+                         : CmpInst::Predicate::ICMP_EQ;
+
+    return builder->CreateCmp(predicate, left, right);
+  }
+  case ast::Operation::COMPARE_IS_NOT_EQUAL: {
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_ONE
+                         : CmpInst::Predicate::ICMP_NE;
+
+    return builder->CreateCmp(predicate, left, right);
   }
   case ast::Operation::COMPARE_IS_LESS: {
-    return builder->CreateCmp(llvm::CmpInst::ICMP_SLT, left, right);
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_OLT
+                         : CmpInst::Predicate::ICMP_SLT;
+
+    return builder->CreateCmp(predicate, left, right);
+  }
+  case ast::Operation::COMPARE_IS_GREATER: {
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_OGT
+                         : CmpInst::Predicate::ICMP_SGT;
+
+    return builder->CreateCmp(predicate, left, right);
+  }
+  case ast::Operation::COMPARE_IS_LESS_OR_EQUAL: {
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_OLE
+                         : CmpInst::Predicate::ICMP_SLE;
+
+    return builder->CreateCmp(predicate, left, right);
+  }
+  case ast::Operation::COMPARE_IS_GREATER_OR_EQUAL: {
+    auto predicate = left->getType()->isFloatingPointTy()
+                         ? CmpInst::Predicate::FCMP_OGE
+                         : CmpInst::Predicate::ICMP_SGE;
+
+    return builder->CreateCmp(predicate, left, right);
   }
   default:
     assert(0); // todo: codegen errors
@@ -236,7 +347,10 @@ void *ExpressionGenerator::visit(ast::Call &call) {
 }
 
 void *ExpressionGenerator::visit(ast::Variable &variable) {
-  return named_values->at(variable.name.lexeme);
+  auto value = named_values->at(variable.name.lexeme);
+  assert(value);
+
+  return builder->CreateLoad(value, variable.name.lexeme.c_str());
 }
 
 void *ExpressionGenerator::visit(ast::StringLiteral &literal) {
