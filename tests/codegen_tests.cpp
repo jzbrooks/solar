@@ -32,9 +32,9 @@ TEST_CASE("add_two function is generated", "[codegen]") {
 }
 
 TEST_CASE("local_vars function is generated", "[codegen]") {
-  auto program = parse_program("func local_vars(n: i32) -> i32 {"
-                               "var a: i32 = 1"
-                               "return a + n"
+  auto program = parse_program("func local_vars(n: i32) -> i32 {\n"
+                               "var a: i32 = 1\n"
+                               "return a + n\n"
                                "}");
 
   CodeGen codegen;

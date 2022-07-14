@@ -3,6 +3,11 @@
 #include <string>
 #include <utility>
 
+struct SourcePosition {
+  size_t line;
+  size_t column;
+};
+
 struct Token {
   enum class Kind : int {
     IDENTIFIER = 0,
@@ -50,13 +55,13 @@ struct Token {
 
   Kind kind;
   std::string lexeme;
-  int line;
+  SourcePosition position;
 
   Token() = default;
   Token(Kind kind, std::string lexeme)
       : kind(kind), lexeme(std::move(lexeme)) {}
   Token(const Token &other)
-      : kind(other.kind), lexeme(other.lexeme), line(other.line){};
+      : kind(other.kind), lexeme(other.lexeme), position(other.position){};
 
   bool operator==(const Token &other) const {
     return kind == other.kind && lexeme == other.lexeme;

@@ -352,7 +352,10 @@ void Parser::error(const string &message) { error(this->current, message); }
 
 void Parser::error(const Token &token, const string &message) {
   ostringstream builder;
-  builder << "[line " << token.line << "] Error at " << token.lexeme << ": "
-          << message << endl;
+
+  builder << "[position " << token.position.line
+          << ':' << token.position.column << "] Error at "
+          << token.lexeme << ": " << message << endl;
+
   errors.emplace_back(builder.str());
 }
