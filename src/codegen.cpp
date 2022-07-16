@@ -46,23 +46,32 @@ static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
   return temp_builder.CreateAlloca(type, nullptr, name);
 }
 
-CodeGen::CodeGen()
-    : named_values(new std::unordered_map<string, AllocaInst *>()) {
+CodeGen::CodeGen() {
   context = new LLVMContext();
   builder = new IRBuilder(*context);
+  debug_info_builder = nullptr;
+  named_values = new std::unordered_map<string, AllocaInst *>();
 }
 
 CodeGen::~CodeGen() {
   delete context;
   delete builder;
+  delete debug_info_builder;
   delete named_values;
 }
 
 Module *CodeGen::compile_module(const char *id, ast::Program *program, bool release) {
   auto module = new Module(id, *context);
-  ExpressionGenerator expressionGenerator(module, builder, named_values);
-  StatementGenerator statementGenerator(module, builder, expressionGenerator,
+  debug_info_builder = new DIBuilder(*module);
+
+  ExpressionGenerator expressionGenerator(module, builder, debug_info_builder, named_values);
+  StatementGenerator statementGenerator(module, builder, debug_info_builder, expressionGenerator,
                                         named_values, release);
+
+  // todo: this file creation might not be correct
+  debug_info_builder->createCompileUnit(
+      dwarf::DW_LANG_C, debug_info_builder->createFile(id, "."),
+      "Solar Compiler", release, "", 0);
 
   // Add printf manually
   std::vector<Type *> args = {Type::getInt8PtrTy(module->getContext())};
@@ -78,15 +87,18 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program, bool rele
     statement->accept(statementGenerator);
   }
 
+  debug_info_builder->finalize();
+
   return module;
 }
 
 StatementGenerator::StatementGenerator(
     Module *module, llvm::IRBuilder<> *builder,
+    DIBuilder *debug_info_builder,
     ExpressionGenerator &expressionGenerator,
     std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
     bool release)
-    : module(module), builder(builder),
+    : module(module), builder(builder), debug_info_builder(debug_info_builder),
       expressionGenerator(expressionGenerator), named_values(named_values),
       function_pass_manager(new legacy::FunctionPassManager(module)) {
 
@@ -191,8 +203,9 @@ void StatementGenerator::visit(ast::Return &return_statement) {
 
 ExpressionGenerator::ExpressionGenerator(
     llvm::Module *module, llvm::IRBuilder<> *builder,
+    DIBuilder *debug_info_builder,
     unordered_map<string, llvm::AllocaInst *> *named_values)
-    : module(module), builder(builder), named_values(named_values) {}
+    : module(module), builder(builder), debug_info_builder(debug_info_builder), named_values(named_values) {}
 
 void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
   auto type = llvm_type_for(expression.type.name, module->getContext());

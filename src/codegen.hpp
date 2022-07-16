@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -12,11 +13,13 @@ class ExpressionGenerator : public ast::ExpressionVisitor {
 private:
   llvm::Module *module;
   llvm::IRBuilder<> *builder;
+  llvm::DIBuilder *debug_info_builder;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
 
 public:
   explicit ExpressionGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
+      llvm::DIBuilder *debug_info_builder,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values);
 
   void *visit(ast::Variable &variable) override;
@@ -31,6 +34,7 @@ class StatementGenerator : public ast::StatementVisitor {
 private:
   llvm::Module *module;
   llvm::IRBuilder<> *builder;
+  llvm::DIBuilder *debug_info_builder;
   ExpressionGenerator &expressionGenerator;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
   llvm::legacy::FunctionPassManager *function_pass_manager;
@@ -38,6 +42,7 @@ private:
 public:
   explicit StatementGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
+      llvm::DIBuilder *debug_info_builder,
       ExpressionGenerator &expressionGenerator,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
       bool release);
@@ -56,6 +61,7 @@ public:
 class CodeGen {
   llvm::LLVMContext *context;
   llvm::IRBuilder<> *builder;
+  llvm::DIBuilder *debug_info_builder;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
 
 public:
