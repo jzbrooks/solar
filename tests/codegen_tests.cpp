@@ -25,13 +25,15 @@ TEST_CASE("add_two function is generated", "[codegen]") {
   const auto &function_body = function->getEntryBlock();
 
   REQUIRE(function->getReturnType() ==
-      llvm::Type::getInt32Ty(module->getContext()));
+          llvm::Type::getInt32Ty(module->getContext()));
 
-  auto instruction = function_body.rbegin();
-  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
-
-  instruction++;
-  REQUIRE(strcmp(instruction->getOpcodeName(), "add") == 0);
+  auto &instruction = function_body.back();
+  REQUIRE(isa<ReturnInst>(instruction));
+  REQUIRE(std::any_of(function_body.begin(), function_body.end(),
+                      [](const Instruction &instruction) {
+                        return isa<BinaryOperator>(instruction) &&
+                               instruction.getOpcode() == Instruction::Add;
+                      }));
 }
 
 TEST_CASE("local_vars function is generated", "[codegen]") {
@@ -46,10 +48,11 @@ TEST_CASE("local_vars function is generated", "[codegen]") {
   const auto &function_body = function->getEntryBlock();
 
   auto instruction = function_body.rbegin();
-  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
-
-  instruction++;
-  REQUIRE(strcmp(instruction->getOpcodeName(), "add") == 0);
+  REQUIRE(isa<ReturnInst>(*instruction));
+  REQUIRE(std::any_of(function_body.begin(), function_body.end(),
+                      [](const Instruction &instruction) {
+                        return isa<AllocaInst>(instruction);
+                      }));
 }
 
 TEST_CASE("comparison greater than", "[codegen]") {
@@ -64,11 +67,14 @@ TEST_CASE("comparison greater than", "[codegen]") {
   const auto &function_body = function->getEntryBlock();
 
   auto instruction = function_body.rbegin();
-  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
+  REQUIRE(isa<ReturnInst>(*instruction));
 
-  std::advance(instruction, 3);
-  REQUIRE(strcmp(instruction->getOpcodeName(), "icmp") == 0);
+  auto compare = std::find_if(
+      function_body.begin(), function_body.end(),
+      [](const Instruction &instruction) { return isa<CmpInst>(instruction); });
 
-  auto compare_instruction = reinterpret_cast<const CmpInst *>(&(*instruction));
+  REQUIRE(compare != function_body.end());
+
+  auto compare_instruction = dyn_cast<CmpInst>(&(*compare));
   REQUIRE(compare_instruction->getPredicate() == llvm::CmpInst::ICMP_SGT);
 }
