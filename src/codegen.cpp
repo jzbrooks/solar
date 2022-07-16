@@ -58,11 +58,11 @@ CodeGen::~CodeGen() {
   delete named_values;
 }
 
-Module *CodeGen::compile_module(const char *id, ast::Program *program) {
+Module *CodeGen::compile_module(const char *id, ast::Program *program, bool release) {
   auto module = new Module(id, *context);
   ExpressionGenerator expressionGenerator(module, builder, named_values);
   StatementGenerator statementGenerator(module, builder, expressionGenerator,
-                                        named_values);
+                                        named_values, release);
 
   // Add printf manually
   std::vector<Type *> args = {Type::getInt8PtrTy(module->getContext())};
@@ -84,17 +84,22 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program) {
 StatementGenerator::StatementGenerator(
     Module *module, llvm::IRBuilder<> *builder,
     ExpressionGenerator &expressionGenerator,
-    std::unordered_map<std::string, llvm::AllocaInst *> *named_values)
+    std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
+    bool release)
     : module(module), builder(builder),
       expressionGenerator(expressionGenerator), named_values(named_values),
       function_pass_manager(new legacy::FunctionPassManager(module)) {
-  // Convert alloca instructions to registers
-  function_pass_manager->add(createPromoteMemoryToRegisterPass());
-  function_pass_manager->add(createGVNPass());
-  function_pass_manager->add(createReassociatePass());
-  function_pass_manager->add(createCFGSimplificationPass());
-  function_pass_manager->add(createDeadCodeEliminationPass());
-  function_pass_manager->add(createInstructionCombiningPass());
+
+  if (release) {
+    // Convert alloca instructions to registers
+    function_pass_manager->add(createPromoteMemoryToRegisterPass());
+    function_pass_manager->add(createGVNPass());
+    function_pass_manager->add(createReassociatePass());
+    function_pass_manager->add(createCFGSimplificationPass());
+    function_pass_manager->add(createDeadCodeEliminationPass());
+    function_pass_manager->add(createInstructionCombiningPass());
+  }
+
   function_pass_manager->doInitialization();
 }
 

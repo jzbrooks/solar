@@ -20,6 +20,7 @@
 using namespace llvm;
 
 int main(int argc, char **argv) {
+  auto release = false;
   auto dump = false;
   std::string output;
   std::vector<std::string> source_inputs;
@@ -30,6 +31,8 @@ int main(int argc, char **argv) {
     std::string argument(argv[i]);
     if (argument == "--dump") {
       dump = true;
+    } else if (argument == "--release") {
+      release = true;
     } else if (argument == "--output") {
       if (i + 1 == argc) {
         errs() << "Expected an output name";
@@ -93,7 +96,7 @@ int main(int argc, char **argv) {
     auto program = parser.parse_program();
 
     CodeGen generator;
-    auto module = generator.compile_module(source_path.c_str(), program);
+    auto module = generator.compile_module(source_path.c_str(), program, release);
 
     if (dump) {
       module->print(outs(), nullptr);

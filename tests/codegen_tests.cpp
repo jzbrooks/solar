@@ -24,11 +24,14 @@ TEST_CASE("add_two function is generated", "[codegen]") {
   const auto &function = module->getFunction("add_two");
   const auto &function_body = function->getEntryBlock();
 
-  REQUIRE(function->getReturnType()->getScalarSizeInBits() == 32);
   REQUIRE(function->getReturnType() ==
-          llvm::Type::getInt32Ty(module->getContext()));
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "add") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
+      llvm::Type::getInt32Ty(module->getContext()));
+
+  auto instruction = function_body.rbegin();
+  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
+
+  instruction++;
+  REQUIRE(strcmp(instruction->getOpcodeName(), "add") == 0);
 }
 
 TEST_CASE("local_vars function is generated", "[codegen]") {
@@ -42,8 +45,11 @@ TEST_CASE("local_vars function is generated", "[codegen]") {
   const auto &function = module->getFunction("local_vars");
   const auto &function_body = function->getEntryBlock();
 
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "add") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
+  auto instruction = function_body.rbegin();
+  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
+
+  instruction++;
+  REQUIRE(strcmp(instruction->getOpcodeName(), "add") == 0);
 }
 
 TEST_CASE("comparison greater than", "[codegen]") {
@@ -57,10 +63,12 @@ TEST_CASE("comparison greater than", "[codegen]") {
   const auto &function = module->getFunction("greater_than");
   const auto &function_body = function->getEntryBlock();
 
-  const auto compare_instruction = const_cast<CmpInst *>(
-      reinterpret_cast<const CmpInst *>(&function_body.getInstList().front()));
+  auto instruction = function_body.rbegin();
+  REQUIRE(strcmp(instruction->getOpcodeName(), "ret") == 0);
 
+  std::advance(instruction, 3);
+  REQUIRE(strcmp(instruction->getOpcodeName(), "icmp") == 0);
+
+  auto compare_instruction = reinterpret_cast<const CmpInst *>(&(*instruction));
   REQUIRE(compare_instruction->getPredicate() == llvm::CmpInst::ICMP_SGT);
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "icmp") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
 }

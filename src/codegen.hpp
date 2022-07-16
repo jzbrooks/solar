@@ -39,7 +39,8 @@ public:
   explicit StatementGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
       ExpressionGenerator &expressionGenerator,
-      std::unordered_map<std::string, llvm::AllocaInst *> *named_values);
+      std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
+      bool release);
 
   virtual ~StatementGenerator() { delete function_pass_manager; }
 
@@ -60,5 +61,5 @@ class CodeGen {
 public:
   CodeGen();
   ~CodeGen();
-  llvm::Module *compile_module(const char *, ast::Program *);
+  llvm::Module *compile_module(const char *, ast::Program *, bool release = false);
 };
