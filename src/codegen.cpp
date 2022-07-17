@@ -18,6 +18,27 @@
 using namespace llvm;
 using namespace std;
 
+static DIBasicType* dwarf_type_for(const Token &type_token, DIBuilder* builder) {
+  if (type_token == ast::Type::Primitive::INT64) {
+    return builder->createBasicType("i64", 64, dwarf::DW_ATE_signed);
+  } else if (type_token == ast::Type::Primitive::UINT64) {
+    return builder->createBasicType("u64", 64, dwarf::DW_ATE_unsigned);
+  } else if (type_token == ast::Type::Primitive::INT32) {
+    return builder->createBasicType("i32", 32, dwarf::DW_ATE_signed);
+  } else if (type_token == ast::Type::Primitive::UINT32) {
+    return builder->createBasicType("u32", 32, dwarf::DW_ATE_unsigned);
+  } else if (type_token == ast::Type::Primitive::FLOAT64) {
+    return builder->createBasicType("f64", 64, dwarf::DW_ATE_float);
+  } else if (type_token == ast::Type::Primitive::FLOAT32) {
+    return builder->createBasicType("f32", 32, dwarf::DW_ATE_float);
+  } else if (type_token == ast::Type::Primitive::BOOL) {
+    return builder->createBasicType("bool", 1, dwarf::DW_ATE_boolean);
+  }
+
+  assert(0); // todo: user defined types
+  return nullptr;
+}
+
 static Type *llvm_type_for(const Token &type_token,
                            llvm::LLVMContext &context) {
   if (type_token == ast::Type::Primitive::INT64 ||
@@ -47,16 +68,18 @@ static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
 }
 
 CodeGen::CodeGen() {
-  context = new LLVMContext();
+  context = new LLVMContext;
   builder = new IRBuilder(*context);
   debug_info_builder = nullptr;
   named_values = new std::unordered_map<string, AllocaInst *>();
+  debug_info = new DebugInfo;
 }
 
 CodeGen::~CodeGen() {
   delete context;
   delete builder;
   delete debug_info_builder;
+  delete debug_info;
   delete named_values;
 }
 
@@ -64,12 +87,12 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program, bool rele
   auto module = new Module(id, *context);
   debug_info_builder = new DIBuilder(*module);
 
-  ExpressionGenerator expressionGenerator(module, builder, debug_info_builder, named_values);
-  StatementGenerator statementGenerator(module, builder, debug_info_builder, expressionGenerator,
+  ExpressionGenerator expressionGenerator(module, builder, debug_info_builder, debug_info, named_values);
+  StatementGenerator statementGenerator(module, builder, debug_info_builder, debug_info, expressionGenerator,
                                         named_values, release);
 
   // todo: this file creation might not be correct
-  debug_info_builder->createCompileUnit(
+  debug_info.compile_unit = debug_info_builder->createCompileUnit(
       dwarf::DW_LANG_C, debug_info_builder->createFile(id, "."),
       "Solar Compiler", release, "", 0);
 
@@ -95,11 +118,13 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program, bool rele
 StatementGenerator::StatementGenerator(
     Module *module, llvm::IRBuilder<> *builder,
     DIBuilder *debug_info_builder,
+    DebugInfo *debug_info,
     ExpressionGenerator &expressionGenerator,
     std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
     bool release)
     : module(module), builder(builder), debug_info_builder(debug_info_builder),
-      expressionGenerator(expressionGenerator), named_values(named_values),
+      debug_info(debug_info), expressionGenerator(expressionGenerator),
+      named_values(named_values),
       function_pass_manager(new legacy::FunctionPassManager(module)) {
 
   if (release) {
@@ -188,9 +213,25 @@ void StatementGenerator::visit(ast::Function &function) {
     builder->CreateRetVoid();
   }
 
-  //#ifdef DEBUG
+  auto unit = debug_info_builder->createFile(debug_info->compile_unit->getFilename(),
+                                      debug_info->compile_unit->getDirectory());
+
+  SmallVector<Metadata *, 8> func_metadata;
+  func_metadata.push_back(dwarf_type_for(function.prototype->return_type, debug_info_builder));
+  for (const auto& arg : function.prototype->parameter_list) {
+    func_metadata.push_back(dwarf_type_for(arg.type, debug_info_builder));
+  }
+
+  auto parameter_types = debug_info_builder->getOrCreateTypeArray(func_metadata);
+  auto subroutine_type = debug_info_builder->createSubroutineType(parameter_types);
+
+  auto subprogram = debug_info_builder->createFunction(
+      unit, func->getName(), StringRef(),
+      unit, function.prototype->name.position.line,
+      subroutine_type, 0);
+  func->setSubprogram(subprogram);
+
   verifyFunction(*func);
-  //#endif
 
   function_pass_manager->run(*func);
 }
@@ -204,8 +245,11 @@ void StatementGenerator::visit(ast::Return &return_statement) {
 ExpressionGenerator::ExpressionGenerator(
     llvm::Module *module, llvm::IRBuilder<> *builder,
     DIBuilder *debug_info_builder,
+    DebugInfo *debug_info,
     unordered_map<string, llvm::AllocaInst *> *named_values)
-    : module(module), builder(builder), debug_info_builder(debug_info_builder), named_values(named_values) {}
+    : module(module), builder(builder),
+      debug_info_builder(debug_info_builder), debug_info(debug_info),
+      named_values(named_values) {}
 
 void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
   auto type = llvm_type_for(expression.type.name, module->getContext());

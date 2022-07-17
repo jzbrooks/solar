@@ -9,17 +9,24 @@
 #include <string>
 #include <unordered_map>
 
+struct DebugInfo {
+  llvm::DICompileUnit *compile_unit;
+};
+
 class ExpressionGenerator : public ast::ExpressionVisitor {
 private:
   llvm::Module *module;
   llvm::IRBuilder<> *builder;
-  llvm::DIBuilder *debug_info_builder;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
+
+  llvm::DIBuilder *debug_info_builder;
+  DebugInfo *debug_info;
 
 public:
   explicit ExpressionGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
       llvm::DIBuilder *debug_info_builder,
+      DebugInfo *debug_info,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values);
 
   void *visit(ast::Variable &variable) override;
@@ -34,15 +41,18 @@ class StatementGenerator : public ast::StatementVisitor {
 private:
   llvm::Module *module;
   llvm::IRBuilder<> *builder;
-  llvm::DIBuilder *debug_info_builder;
   ExpressionGenerator &expressionGenerator;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
   llvm::legacy::FunctionPassManager *function_pass_manager;
+
+  DebugInfo *debug_info;
+  llvm::DIBuilder *debug_info_builder;
 
 public:
   explicit StatementGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
       llvm::DIBuilder *debug_info_builder,
+      DebugInfo *debug_info,
       ExpressionGenerator &expressionGenerator,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
       bool release);
@@ -61,8 +71,10 @@ public:
 class CodeGen {
   llvm::LLVMContext *context;
   llvm::IRBuilder<> *builder;
-  llvm::DIBuilder *debug_info_builder;
   std::unordered_map<std::string, llvm::AllocaInst *> *named_values;
+
+  DebugInfo *debug_info;
+  llvm::DIBuilder *debug_info_builder;
 
 public:
   CodeGen();
