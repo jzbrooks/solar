@@ -18,7 +18,8 @@
 using namespace llvm;
 using namespace std;
 
-static DIBasicType* dwarf_type_for(const Token &type_token, DIBuilder* builder) {
+static DIBasicType *dwarf_type_for(const Token &type_token,
+                                   DIBuilder *builder) {
   if (type_token == ast::Type::Primitive::INT64) {
     return builder->createBasicType("i64", 64, dwarf::DW_ATE_signed);
   } else if (type_token == ast::Type::Primitive::UINT64) {
@@ -67,6 +68,16 @@ static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
   return temp_builder.CreateAlloca(type, nullptr, name);
 }
 
+void DebugInfo::emit_location(llvm::IRBuilder<> *ir_builder,
+                              const ast::Node *node) {
+  auto position = node ? node->position : SourcePosition{0, 0};
+  auto scope = lexical_scopes.empty() ? compile_unit : lexical_scopes.back();
+  auto location = DILocation::get(scope->getContext(), position.line,
+                                  position.column, scope);
+
+  ir_builder->SetCurrentDebugLocation(location);
+}
+
 CodeGen::CodeGen() {
   context = new LLVMContext;
   builder = new IRBuilder(*context);
@@ -83,20 +94,25 @@ CodeGen::~CodeGen() {
   delete named_values;
 }
 
-Module *CodeGen::compile_module(const char *id, ast::Program *program, bool release) {
+Module *CodeGen::compile_module(const char *id, ast::Program *program,
+                                bool release) {
   auto module = new Module(id, *context);
   debug_info_builder = new DIBuilder(*module);
 
-  ExpressionGenerator expressionGenerator(module, builder, debug_info_builder, debug_info, named_values);
-  StatementGenerator statementGenerator(module, builder, debug_info_builder, debug_info, expressionGenerator,
+  ExpressionGenerator expressionGenerator(module, builder, debug_info_builder,
+                                          debug_info, named_values);
+  StatementGenerator statementGenerator(module, builder, debug_info_builder,
+                                        debug_info, expressionGenerator,
                                         named_values, release);
 
   // todo: this file creation might not be correct
-  debug_info.compile_unit = debug_info_builder->createCompileUnit(
+  debug_info->compile_unit = debug_info_builder->createCompileUnit(
       dwarf::DW_LANG_C, debug_info_builder->createFile(id, "."),
       "Solar Compiler", release, "", 0);
 
   // Add printf manually
+  // todo(jzb): Add debug info for printf?
+  //  really this should be in a standard library eventually
   std::vector<Type *> args = {Type::getInt8PtrTy(module->getContext())};
   auto printf_type =
       FunctionType::get(Type::getInt32Ty(module->getContext()),
@@ -116,10 +132,8 @@ Module *CodeGen::compile_module(const char *id, ast::Program *program, bool rele
 }
 
 StatementGenerator::StatementGenerator(
-    Module *module, llvm::IRBuilder<> *builder,
-    DIBuilder *debug_info_builder,
-    DebugInfo *debug_info,
-    ExpressionGenerator &expressionGenerator,
+    Module *module, llvm::IRBuilder<> *builder, DIBuilder *debug_info_builder,
+    DebugInfo *debug_info, ExpressionGenerator &expressionGenerator,
     std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
     bool release)
     : module(module), builder(builder), debug_info_builder(debug_info_builder),
@@ -149,6 +163,17 @@ void StatementGenerator::visit(ast::VariableDeclaration &node) {
       create_entry_block_alloca(*builder, function, type, node.name.lexeme);
   named_values->insert({node.name.lexeme, alloca});
 
+  auto subprogram = function->getSubprogram();
+  auto file = subprogram->getFile();
+  auto variable_debug_info = debug_info_builder->createAutoVariable(
+      subprogram->getScope(), node.name.lexeme, file, node.position.line,
+      dwarf_type_for(node.type, debug_info_builder), true);
+  debug_info_builder->insertDeclare(
+      alloca, variable_debug_info, debug_info_builder->createExpression(),
+      DILocation::get(subprogram->getContext(), node.position.line, 0,
+                      subprogram),
+      builder->GetInsertBlock());
+
   if (node.initializer) {
     auto value = (Value *)node.initializer->accept(expressionGenerator);
     builder->CreateStore(value, alloca);
@@ -166,12 +191,35 @@ void StatementGenerator::visit(ast::ExpressionStatement &node) {
 }
 
 void StatementGenerator::visit(ast::Block &block) {
+  debug_info->emit_location(builder, &block);
+
   for (const auto &statement : block.statements) {
     statement->accept(*this);
   }
 }
 
 void StatementGenerator::visit(ast::Function &function) {
+
+  auto unit =
+      debug_info_builder->createFile(debug_info->compile_unit->getFilename(),
+                                     debug_info->compile_unit->getDirectory());
+
+  SmallVector<Metadata *, 8> func_metadata;
+  func_metadata.push_back(
+      dwarf_type_for(function.prototype->return_type, debug_info_builder));
+  for (const auto &arg : function.prototype->parameter_list) {
+    func_metadata.push_back(dwarf_type_for(arg.type, debug_info_builder));
+  }
+
+  auto parameter_types =
+      debug_info_builder->getOrCreateTypeArray(func_metadata);
+  auto subroutine_type =
+      debug_info_builder->createSubroutineType(parameter_types);
+
+  auto subprogram = debug_info_builder->createFunction(
+      unit, function.prototype->name.lexeme, StringRef(), unit,
+      function.prototype->name.position.line, subroutine_type, 0);
+
   // todo: check for prototype in module
   std::vector<Type *> argument_types;
   for (const auto &parameter : function.prototype->parameter_list) {
@@ -190,21 +238,43 @@ void StatementGenerator::visit(ast::Function &function) {
       ArrayRef<Type *>(argument_types.data(), argument_types.size()), false);
   auto func = Function::Create(type, GlobalValue::LinkageTypes::ExternalLinkage,
                                function.prototype->name.lexeme, module);
-  auto entry = BasicBlock::Create(module->getContext(), "entry", func);
-  builder->SetInsertPoint(entry);
+
+  func->setSubprogram(subprogram);
+
+  debug_info->lexical_scopes.push_back(subprogram);
+
+  // Unset the location for the prologue emission (leading instructions with no
+  // location in a function are considered part of the prologue and the debugger
+  // will run past them when breaking on a function)
+  debug_info->emit_location(builder, nullptr);
 
   assert(function.prototype->parameter_list.size() == func->arg_size());
 
-  for (auto i = 0; i < function.prototype->parameter_list.size(); ++i) {
-    func->getArg(i)->setName(function.prototype->parameter_list[i].name.lexeme);
-  }
+  auto entry = BasicBlock::Create(module->getContext(), "entry", func);
+  builder->SetInsertPoint(entry);
 
   named_values->clear();
-  for (auto &arg : func->args()) {
-    auto alloca =
-        create_entry_block_alloca(*builder, func, arg.getType(), arg.getName());
-    builder->CreateStore(&arg, alloca);
-    named_values->insert_or_assign(arg.getName().str(), alloca);
+  for (auto i = 0; i < function.prototype->parameter_list.size(); ++i) {
+    const auto &parameter = function.prototype->parameter_list[i];
+    const auto &arg = func->getArg(i);
+    arg->setName(parameter.name.lexeme);
+
+    auto alloca = create_entry_block_alloca(*builder, func, arg->getType(),
+                                            arg->getName());
+
+    auto arg_debug_info = debug_info_builder->createParameterVariable(
+        subprogram, arg->getName(), arg->getArgNo(), unit,
+        parameter.position.line,
+        dwarf_type_for(parameter.type, debug_info_builder), true);
+
+    debug_info_builder->insertDeclare(
+        alloca, arg_debug_info, debug_info_builder->createExpression(),
+        DILocation::get(subprogram->getContext(), parameter.position.line, 0,
+                        subprogram),
+        builder->GetInsertBlock());
+
+    builder->CreateStore(arg, alloca);
+    named_values->insert_or_assign(arg->getName().str(), alloca);
   }
 
   function.body->accept(*this);
@@ -213,23 +283,7 @@ void StatementGenerator::visit(ast::Function &function) {
     builder->CreateRetVoid();
   }
 
-  auto unit = debug_info_builder->createFile(debug_info->compile_unit->getFilename(),
-                                      debug_info->compile_unit->getDirectory());
-
-  SmallVector<Metadata *, 8> func_metadata;
-  func_metadata.push_back(dwarf_type_for(function.prototype->return_type, debug_info_builder));
-  for (const auto& arg : function.prototype->parameter_list) {
-    func_metadata.push_back(dwarf_type_for(arg.type, debug_info_builder));
-  }
-
-  auto parameter_types = debug_info_builder->getOrCreateTypeArray(func_metadata);
-  auto subroutine_type = debug_info_builder->createSubroutineType(parameter_types);
-
-  auto subprogram = debug_info_builder->createFunction(
-      unit, func->getName(), StringRef(),
-      unit, function.prototype->name.position.line,
-      subroutine_type, 0);
-  func->setSubprogram(subprogram);
+  debug_info->lexical_scopes.pop_back();
 
   verifyFunction(*func);
 
@@ -237,6 +291,8 @@ void StatementGenerator::visit(ast::Function &function) {
 }
 
 void StatementGenerator::visit(ast::Return &return_statement) {
+  debug_info->emit_location(builder, &return_statement);
+
   auto value =
       (Value *)return_statement.return_value->accept(expressionGenerator);
   builder->CreateRet(value);
@@ -244,14 +300,14 @@ void StatementGenerator::visit(ast::Return &return_statement) {
 
 ExpressionGenerator::ExpressionGenerator(
     llvm::Module *module, llvm::IRBuilder<> *builder,
-    DIBuilder *debug_info_builder,
-    DebugInfo *debug_info,
+    DIBuilder *debug_info_builder, DebugInfo *debug_info,
     unordered_map<string, llvm::AllocaInst *> *named_values)
-    : module(module), builder(builder),
-      debug_info_builder(debug_info_builder), debug_info(debug_info),
-      named_values(named_values) {}
+    : module(module), builder(builder), debug_info_builder(debug_info_builder),
+      debug_info(debug_info), named_values(named_values) {}
 
 void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
+  debug_info->emit_location(builder, &expression);
+
   auto type = llvm_type_for(expression.type.name, module->getContext());
   auto size = type->getScalarSizeInBits();
 
@@ -271,6 +327,8 @@ void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
 }
 
 void *ExpressionGenerator::visit(ast::Binop &binop) {
+  debug_info->emit_location(builder, &binop);
+
   auto left = (Value *)binop.left->accept(*this);
   auto right = (Value *)binop.right->accept(*this);
   auto operation = binop.operation;
@@ -347,6 +405,8 @@ void *ExpressionGenerator::visit(ast::Binop &binop) {
 }
 
 void *ExpressionGenerator::visit(ast::Condition &condition) {
+  debug_info->emit_location(builder, &condition);
+
   auto if_condition = static_cast<Value *>(condition.condition->accept(*this));
   assert(if_condition);
 
@@ -393,6 +453,8 @@ void *ExpressionGenerator::visit(ast::Condition &condition) {
 }
 
 void *ExpressionGenerator::visit(ast::Call &call) {
+  debug_info->emit_location(builder, &call);
+
   auto function = module->getFunction(call.name.lexeme);
 
   // todo: codegen errors
@@ -409,6 +471,8 @@ void *ExpressionGenerator::visit(ast::Call &call) {
 }
 
 void *ExpressionGenerator::visit(ast::Variable &variable) {
+  debug_info->emit_location(builder, &variable);
+
   auto value = named_values->at(variable.name.lexeme);
   assert(value);
 
@@ -416,5 +480,6 @@ void *ExpressionGenerator::visit(ast::Variable &variable) {
 }
 
 void *ExpressionGenerator::visit(ast::StringLiteral &literal) {
+  debug_info->emit_location(builder, &literal);
   return builder->CreateGlobalStringPtr(StringRef(literal.value));
 }

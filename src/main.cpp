@@ -96,7 +96,8 @@ int main(int argc, char **argv) {
     auto program = parser.parse_program();
 
     CodeGen generator;
-    auto module = generator.compile_module(source_path.c_str(), program, release);
+    auto module =
+        generator.compile_module(source_path.c_str(), program, release);
 
     if (dump) {
       module->print(outs(), nullptr);

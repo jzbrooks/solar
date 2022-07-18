@@ -8,9 +8,13 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 struct DebugInfo {
   llvm::DICompileUnit *compile_unit;
+  std::vector<llvm::DIScope *> lexical_scopes;
+
+  void emit_location(llvm::IRBuilder<> *, const ast::Node *node);
 };
 
 class ExpressionGenerator : public ast::ExpressionVisitor {
@@ -25,8 +29,7 @@ private:
 public:
   explicit ExpressionGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
-      llvm::DIBuilder *debug_info_builder,
-      DebugInfo *debug_info,
+      llvm::DIBuilder *debug_info_builder, DebugInfo *debug_info,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values);
 
   void *visit(ast::Variable &variable) override;
@@ -51,8 +54,7 @@ private:
 public:
   explicit StatementGenerator(
       llvm::Module *module, llvm::IRBuilder<> *builder,
-      llvm::DIBuilder *debug_info_builder,
-      DebugInfo *debug_info,
+      llvm::DIBuilder *debug_info_builder, DebugInfo *debug_info,
       ExpressionGenerator &expressionGenerator,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values,
       bool release);
@@ -79,5 +81,6 @@ class CodeGen {
 public:
   CodeGen();
   ~CodeGen();
-  llvm::Module *compile_module(const char *, ast::Program *, bool release = false);
+  llvm::Module *compile_module(const char *, ast::Program *,
+                               bool release = false);
 };

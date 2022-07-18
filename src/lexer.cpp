@@ -4,11 +4,10 @@
 #include <sstream>
 #include <unordered_map>
 
-static std::unordered_map<std::string, Token::Kind> reserved_words{ // NOLINT(cert-err58-cpp)
-    {"else", Token::Kind::ELSE},
-    {"func", Token::Kind::FUNC},
-    {"if", Token::Kind::IF},
-    {"return", Token::Kind::RETURN},
+static std::unordered_map<std::string, Token::Kind> reserved_words{
+    // NOLINT(cert-err58-cpp)
+    {"else", Token::Kind::ELSE}, {"func", Token::Kind::FUNC},
+    {"if", Token::Kind::IF},     {"return", Token::Kind::RETURN},
     {"var", Token::Kind::VAR},
 };
 
@@ -17,7 +16,7 @@ Token Lexer::next() {
 
   eat_whitespace();
 
-  token.position = { line, offset % line };
+  token.position = {line, offset % line};
 
   auto ch = input->at(offset);
 
