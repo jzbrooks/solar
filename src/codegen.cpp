@@ -70,10 +70,14 @@ static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
 
 void DebugInfo::emit_location(llvm::IRBuilder<> *ir_builder,
                               const ast::Node *node) {
-  auto position = node ? node->position : SourcePosition{0, 0};
+  if (!node) {
+    ir_builder->SetCurrentDebugLocation(DebugLoc());
+    return;
+  }
+
   auto scope = lexical_scopes.empty() ? compile_unit : lexical_scopes.back();
-  auto location = DILocation::get(scope->getContext(), position.line,
-                                  position.column, scope);
+  auto location = DILocation::get(scope->getContext(), node->position.line,
+                                  node->position.column, scope);
 
   ir_builder->SetCurrentDebugLocation(location);
 }

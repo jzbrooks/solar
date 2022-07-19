@@ -247,7 +247,9 @@ Node *Parser::function() {
     type->parameter_list.emplace_back(parameter_name, parameter_type);
   }
   consume(Token::Kind::RPAREN, "Expected ')'");
-  auto return_type = Token(Token::Kind::IDENTIFIER, "Void");
+  // todo: there should probably be a concept of an implied token
+  //  that doesn't require a source position
+  auto return_type = Token(Token::Kind::IDENTIFIER, "Void", current.position);
   if (current.kind == Token::Kind::ARROW) {
     advance();
     return_type = current;

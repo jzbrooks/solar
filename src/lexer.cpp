@@ -16,75 +16,75 @@ Token Lexer::next() {
 
   eat_whitespace();
 
-  token.position = {line, offset % line};
+  SourcePosition position{line + 1, offset % (line + 1)};
 
   auto ch = input->at(offset);
 
   if (offset >= input->size() || ch == EOF) {
-    return {Token::Kind::END, ""};
+    return {Token::Kind::END, "", position};
   }
 
   switch (ch) {
   case '+':
-    token = {Token::Kind::PLUS, extractLexeme(1)};
+    token = {Token::Kind::PLUS, extractLexeme(1), position};
     break;
   case '-':
     if (match('>')) {
-      token = {Token::Kind::ARROW, extractLexeme(2)};
+      token = {Token::Kind::ARROW, extractLexeme(2), position};
     } else {
-      token = {Token::Kind::MINUS, extractLexeme(1)};
+      token = {Token::Kind::MINUS, extractLexeme(1), position};
     }
     break;
   case '*':
-    token = {Token::Kind::STAR, extractLexeme(1)};
+    token = {Token::Kind::STAR, extractLexeme(1), position};
     break;
   case '/':
-    token = {Token::Kind::SLASH, extractLexeme(1)};
+    token = {Token::Kind::SLASH, extractLexeme(1), position};
     break;
   case '=':
     if (match('=')) {
-      token = {Token::Kind::EQUAL, extractLexeme(2)};
+      token = {Token::Kind::EQUAL, extractLexeme(2), position};
     } else {
-      token = {Token::Kind::ASSIGN, extractLexeme(1)};
+      token = {Token::Kind::ASSIGN, extractLexeme(1), position};
     }
     break;
   case '<':
     if (match('=')) {
-      token = {Token::Kind::LESS_EQUAL, extractLexeme(2)};
+      token = {Token::Kind::LESS_EQUAL, extractLexeme(2), position};
     } else {
-      token = {Token::Kind::LESS, extractLexeme(1)};
+      token = {Token::Kind::LESS, extractLexeme(1), position};
     }
     break;
   case '>':
     if (match('=')) {
-      token = {Token::Kind::GREATER_EQUAL, extractLexeme(2)};
+      token = {Token::Kind::GREATER_EQUAL, extractLexeme(2), position};
     } else {
-      token = {Token::Kind::GREATER, extractLexeme(1)};
+      token = {Token::Kind::GREATER, extractLexeme(1), position};
     }
     break;
   case '(':
-    token = {Token::Kind::LPAREN, extractLexeme(1)};
+    token = {Token::Kind::LPAREN, extractLexeme(1), position};
     break;
   case ')':
-    token = {Token::Kind::RPAREN, extractLexeme(1)};
+    token = {Token::Kind::RPAREN, extractLexeme(1), position};
     break;
   case '{':
-    token = {Token::Kind::LBRACE, extractLexeme(1)};
+    token = {Token::Kind::LBRACE, extractLexeme(1), position};
     break;
   case '}':
-    token = {Token::Kind::RBRACE, extractLexeme(1)};
+    token = {Token::Kind::RBRACE, extractLexeme(1), position};
     break;
   case ',':
-    token = {Token::Kind::COMMA, extractLexeme(1)};
+    token = {Token::Kind::COMMA, extractLexeme(1), position};
     break;
   case ':':
-    token = {Token::Kind::COLON, extractLexeme(1)};
+    token = {Token::Kind::COLON, extractLexeme(1), position};
     break;
   case '!':
     if (match('=')) {
-      token = {Token::Kind::NOT_EQUAL, extractLexeme(2)};
+      token = {Token::Kind::NOT_EQUAL, extractLexeme(2), position};
     } else {
-      token = {Token::Kind::NEGATE, extractLexeme(1)};
+      token = {Token::Kind::NEGATE, extractLexeme(1), position};
     }
     break;
   case '"':
@@ -96,7 +96,7 @@ Token Lexer::next() {
     } else if (isdigit(ch)) {
       token = read_number();
     } else {
-      token = {Token::Kind::INVALID, extractLexeme(1)};
+      token = {Token::Kind::INVALID, extractLexeme(1), position};
     }
     break;
   }
@@ -121,6 +121,7 @@ void Lexer::eat_whitespace() {
 
 Token Lexer::read_word() const {
   std::stringstream word_stream;
+  SourcePosition position{line + 1, offset % (line + 1)};
 
   for (auto it = input->begin() + offset;
        it != input->end() && (isalnum(*it) || *it == '_'); ++it) {
@@ -132,13 +133,15 @@ Token Lexer::read_word() const {
 
   auto reserved_word = reserved_words.find(word);
   if (reserved_word != reserved_words.end()) {
-    return Token{reserved_word->second, extractLexeme(length)};
+    return Token{reserved_word->second, extractLexeme(length), position};
   }
 
-  return Token{Token::Kind::IDENTIFIER, extractLexeme(length)};
+  return Token{Token::Kind::IDENTIFIER, extractLexeme(length), position};
 }
 
 Token Lexer::read_number() const {
+  SourcePosition position{line, offset % line};
+
   auto length = 0;
   for (auto it = input->begin() + offset;
        it != input->end() && (isdigit(*it) || *it == '.'); ++it) {
@@ -152,17 +155,18 @@ Token Lexer::read_number() const {
     }
   }
 
-  return Token{Token::Kind::NUMBER, extractLexeme(length)};
+  return Token{Token::Kind::NUMBER, extractLexeme(length), position};
 }
 
 Token Lexer::read_string() {
+  SourcePosition position{line, offset % line};
   auto length = 2; // account for delimiting double quotes
   for (auto it = input->begin() + offset + 1; it != input->end() && *it != '"';
        ++it) {
     length += 1;
   }
 
-  return Token{Token::Kind::STRING, extractLexeme(length)};
+  return Token{Token::Kind::STRING, extractLexeme(length), position};
 }
 
 bool Lexer::match(char character) const {
