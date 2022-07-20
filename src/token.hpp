@@ -65,8 +65,8 @@ struct Token {
   SourcePosition position;
 
   Token() = default;
-  Token(Kind kind, std::string lexeme, const SourcePosition &position)
-      : kind(kind), lexeme(std::move(lexeme)), position(position) {}
+  Token(Kind kind, std::string lexeme, const SourcePosition& position)
+      : kind(kind), lexeme(std::move(lexeme)), position(position.line, position.column) {}
   Token(const Token &other) = default;
 
   bool operator==(const Token &other) const {
@@ -76,6 +76,10 @@ struct Token {
 
 static auto name(Token::Kind kind) -> const char * {
   switch (kind) {
+  case Token::Kind::VAR:
+    return "VAR\0";
+  case Token::Kind::COLON:
+    return "COLON\0";
   case Token::Kind::IDENTIFIER:
     return "IDENTIFIER\0";
   case Token::Kind::FUNC:

@@ -70,10 +70,7 @@ static AllocaInst *create_entry_block_alloca(IRBuilder<> &builder,
 
 void DebugInfo::emit_location(llvm::IRBuilder<> *ir_builder,
                               const ast::Node *node) {
-  if (!node) {
-    ir_builder->SetCurrentDebugLocation(DebugLoc());
-    return;
-  }
+  assert(node);
 
   auto scope = lexical_scopes.empty() ? compile_unit : lexical_scopes.back();
   auto location = DILocation::get(scope->getContext(), node->position.line,
@@ -174,8 +171,8 @@ void StatementGenerator::visit(ast::VariableDeclaration &node) {
       dwarf_type_for(node.type, debug_info_builder), true);
   debug_info_builder->insertDeclare(
       alloca, variable_debug_info, debug_info_builder->createExpression(),
-      DILocation::get(subprogram->getContext(), node.position.line, 0,
-                      subprogram),
+      DILocation::get(subprogram->getContext(), node.position.line,
+                      node.position.column, subprogram),
       builder->GetInsertBlock());
 
   if (node.initializer) {
@@ -208,7 +205,7 @@ void StatementGenerator::visit(ast::Function &function) {
       debug_info_builder->createFile(debug_info->compile_unit->getFilename(),
                                      debug_info->compile_unit->getDirectory());
 
-  SmallVector<Metadata *, 8> func_metadata;
+  std::vector<Metadata *> func_metadata;
   func_metadata.push_back(
       dwarf_type_for(function.prototype->return_type, debug_info_builder));
   for (const auto &arg : function.prototype->parameter_list) {
@@ -220,9 +217,11 @@ void StatementGenerator::visit(ast::Function &function) {
   auto subroutine_type =
       debug_info_builder->createSubroutineType(parameter_types);
 
+  DIScope *scope = unit;
   auto subprogram = debug_info_builder->createFunction(
-      unit, function.prototype->name.lexeme, StringRef(), unit,
-      function.prototype->name.position.line, subroutine_type, 0);
+      scope, function.prototype->name.lexeme, StringRef(), unit,
+      function.position.line, subroutine_type, 0, DINode::FlagPrototyped,
+      DISubprogram::SPFlagDefinition);
 
   // todo: check for prototype in module
   std::vector<Type *> argument_types;
@@ -250,7 +249,7 @@ void StatementGenerator::visit(ast::Function &function) {
   // Unset the location for the prologue emission (leading instructions with no
   // location in a function are considered part of the prologue and the debugger
   // will run past them when breaking on a function)
-  debug_info->emit_location(builder, nullptr);
+  builder->SetCurrentDebugLocation(DebugLoc());
 
   assert(function.prototype->parameter_list.size() == func->arg_size());
 

@@ -108,6 +108,14 @@ int main(int argc, char **argv) {
     module->setDataLayout(target_machine->createDataLayout());
     module->setTargetTriple(target_triple);
 
+    // Add the current debug info version into the module.
+    module->addModuleFlag(Module::Warning, "Debug Info Version",
+                          DEBUG_METADATA_VERSION);
+
+    // Darwin only supports dwarf2.
+    if (Triple(sys::getProcessTriple()).isOSDarwin())
+      module->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+
     std::filesystem::path object_file_path(source_path);
     object_file_path.replace_extension("o");
     std::error_code error_code;

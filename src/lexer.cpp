@@ -4,6 +4,10 @@
 #include <sstream>
 #include <unordered_map>
 
+static SourcePosition get_position(const Lexer &lexer) {
+  return {lexer.line + 1, lexer.offset % (lexer.line + 1)};
+}
+
 static std::unordered_map<std::string, Token::Kind> reserved_words{
     // NOLINT(cert-err58-cpp)
     {"else", Token::Kind::ELSE}, {"func", Token::Kind::FUNC},
@@ -16,7 +20,7 @@ Token Lexer::next() {
 
   eat_whitespace();
 
-  SourcePosition position{line + 1, offset % (line + 1)};
+  auto position = get_position(*this);
 
   auto ch = input->at(offset);
 
@@ -121,7 +125,7 @@ void Lexer::eat_whitespace() {
 
 Token Lexer::read_word() const {
   std::stringstream word_stream;
-  SourcePosition position{line + 1, offset % (line + 1)};
+  auto position = get_position(*this);
 
   for (auto it = input->begin() + offset;
        it != input->end() && (isalnum(*it) || *it == '_'); ++it) {
@@ -140,7 +144,7 @@ Token Lexer::read_word() const {
 }
 
 Token Lexer::read_number() const {
-  SourcePosition position{line, offset % line};
+  auto position = get_position(*this);
 
   auto length = 0;
   for (auto it = input->begin() + offset;
@@ -159,7 +163,7 @@ Token Lexer::read_number() const {
 }
 
 Token Lexer::read_string() {
-  SourcePosition position{line, offset % line};
+  auto position = get_position(*this);
   auto length = 2; // account for delimiting double quotes
   for (auto it = input->begin() + offset + 1; it != input->end() && *it != '"';
        ++it) {
