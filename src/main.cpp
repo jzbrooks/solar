@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   auto release = false;
   auto dump = false;
   std::string output;
-  std::vector<std::string> source_inputs;
+  std::vector<std::filesystem::path> source_inputs;
 
   // todo: more robust argument parsing
   //  - forbid --dump and --output both being specified, etc
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
       i += 1;
       output = std::string(argv[i]);
     } else {
-      source_inputs.push_back(argument);
+      source_inputs.emplace_back(argument);
     }
   }
 
@@ -96,8 +96,7 @@ int main(int argc, char **argv) {
     auto program = parser.parse_program();
 
     CodeGen generator;
-    auto module =
-        generator.compile_module(source_path.c_str(), program, release);
+    auto module = generator.compile_module(source_path, program, release);
 
     if (dump) {
       module->print(outs(), nullptr);
@@ -107,10 +106,6 @@ int main(int argc, char **argv) {
 
     module->setDataLayout(target_machine->createDataLayout());
     module->setTargetTriple(target_triple);
-
-    // Add the current debug info version into the module.
-    module->addModuleFlag(Module::Warning, "Debug Info Version",
-                          DEBUG_METADATA_VERSION);
 
     // Darwin only supports dwarf2.
     if (Triple(sys::getProcessTriple()).isOSDarwin())

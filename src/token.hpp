@@ -65,8 +65,9 @@ struct Token {
   SourcePosition position;
 
   Token() = default;
-  Token(Kind kind, std::string lexeme, const SourcePosition& position)
-      : kind(kind), lexeme(std::move(lexeme)), position(position.line, position.column) {}
+  Token(Kind kind, std::string lexeme, const SourcePosition &position)
+      : kind(kind), lexeme(std::move(lexeme)),
+        position(position.line, position.column) {}
   Token(const Token &other) = default;
 
   bool operator==(const Token &other) const {
