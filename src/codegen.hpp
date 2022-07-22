@@ -25,7 +25,6 @@ public:
                               const std::filesystem::path &);
   ~DebugInfoGenerator();
 
-  // todo: should this be a visitor?
   void attach_debug_info(const ast::Function &, llvm::Function *);
   void attach_debug_info(const ast::Parameter &, llvm::Argument *,
                          llvm::AllocaInst *, llvm::DISubprogram *);
@@ -51,11 +50,11 @@ public:
       DebugInfoGenerator *debug_info_generator,
       std::unordered_map<std::string, llvm::AllocaInst *> *named_values);
 
-  void *visit(ast::Variable &variable) override;
-  void *visit(ast::LiteralValueExpression &expression) override;
-  void *visit(ast::Binop &binop) override;
-  void *visit(ast::Condition &condition) override;
-  void *visit(ast::Call &call) override;
+  void *visit(ast::Variable &) override;
+  void *visit(ast::LiteralValueExpression &) override;
+  void *visit(ast::Binop &) override;
+  void *visit(ast::Condition &) override;
+  void *visit(ast::Call &) override;
   void *visit(ast::StringLiteral &) override;
 };
 
@@ -80,11 +79,11 @@ public:
   virtual ~StatementGenerator() { delete function_pass_manager; }
 
 public:
-  void visit(ast::VariableDeclaration &statement) override;
-  void visit(ast::FunctionPrototype &statement) override;
-  void visit(ast::ExpressionStatement &statement) override;
-  void visit(ast::Function &function) override;
-  void visit(ast::Block &block) override;
+  void visit(ast::VariableDeclaration &) override;
+  void visit(ast::FunctionPrototype &) override;
+  void visit(ast::ExpressionStatement &) override;
+  void visit(ast::Function &) override;
+  void visit(ast::Block &) override;
   void visit(ast::Return &) override;
 };
 
