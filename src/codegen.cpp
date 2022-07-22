@@ -8,6 +8,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -431,6 +432,14 @@ DebugInfoGenerator::DebugInfoGenerator(llvm::Module *module,
                                        llvm::IRBuilder<> *ir_builder,
                                        const std::filesystem::path &file)
     : debug_info_builder(new DIBuilder(*module)), ir_builder(ir_builder) {
+
+  // Darwin only supports dwarf2.
+  if (Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+    module->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+
+  // Add the current debug info version into the module.
+  module->addModuleFlag(Module::Warning, "Debug Info Version",
+                        DEBUG_METADATA_VERSION);
 
   auto di_file = debug_info_builder->createFile(file.filename().c_str(),
                                                 file.parent_path().c_str());

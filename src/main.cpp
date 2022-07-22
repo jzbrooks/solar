@@ -2,7 +2,6 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
-#include <sstream>
 #include <vector>
 
 #include "codegen.hpp"
@@ -98,21 +97,20 @@ int main(int argc, char **argv) {
     CodeGen generator;
     auto module = generator.compile_module(source_path, program, release);
 
+    module->setDataLayout(target_machine->createDataLayout());
+    module->setTargetTriple(target_triple);
+
+    std::filesystem::path object_file_path(source_path);
+    object_file_path.replace_extension("o");
+
+    linker_command << " " << object_file_path.string();
+
     if (dump) {
       module->print(outs(), nullptr);
       outs() << "\n";
       continue;
     }
 
-    module->setDataLayout(target_machine->createDataLayout());
-    module->setTargetTriple(target_triple);
-
-    // Darwin only supports dwarf2.
-    if (Triple(sys::getProcessTriple()).isOSDarwin())
-      module->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
-
-    std::filesystem::path object_file_path(source_path);
-    object_file_path.replace_extension("o");
     std::error_code error_code;
     raw_fd_ostream dest(object_file_path.string(), error_code,
                         sys::fs::OF_None);
@@ -123,17 +121,14 @@ int main(int argc, char **argv) {
     }
 
     legacy::PassManager pass;
-    auto FileType = CGFT_ObjectFile;
-
-    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr,
+                                            CGFT_ObjectFile)) {
       errs() << "TheTargetMachine can't emit a file of this type";
       return 1;
     }
 
     pass.run(*module);
     dest.flush();
-
-    linker_command << " " << object_file_path.string();
   }
 
   linker_command << " -o";
