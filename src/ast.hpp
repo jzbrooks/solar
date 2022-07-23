@@ -60,6 +60,11 @@ enum class Operation {
 };
 
 struct Node {
+  SourcePosition position;
+
+  Node() = delete;
+  Node(SourcePosition position) : position(position) {}
+
   [[nodiscard]] virtual std::string describe() const = 0;
 };
 
@@ -73,6 +78,9 @@ struct ExpressionVisitor {
 };
 
 struct Expression : public Node {
+  Expression() = delete;
+  Expression(SourcePosition position) : Node(position) {}
+
   virtual void *accept(ExpressionVisitor &) = 0;
   virtual ~Expression() = default;
 };
@@ -81,7 +89,8 @@ struct Variable : public Expression {
   Token name;
 
   Variable() = delete;
-  explicit Variable(const Token &name) : name(name) {}
+  explicit Variable(SourcePosition position, const Token &name)
+      : Expression(position), name(name) {}
 
   void *accept(ExpressionVisitor &visitor) override {
     return visitor.visit(*this);
@@ -98,7 +107,8 @@ struct StringLiteral : public Expression {
   std::string value;
 
   StringLiteral() = delete;
-  explicit StringLiteral(std::string value) : value(std::move(value)) {}
+  explicit StringLiteral(SourcePosition position, std::string value)
+      : Expression(position), value(std::move(value)) {}
 
   void *accept(ExpressionVisitor &visitor) override {
     return visitor.visit(*this);
@@ -116,8 +126,8 @@ struct LiteralValueExpression : public Expression {
   Value value;
 
   LiteralValueExpression() = delete;
-  LiteralValueExpression(Type type, Value value)
-      : type(std::move(type)), value(value) {}
+  LiteralValueExpression(SourcePosition position, Type type, Value value)
+      : Expression(position), type(std::move(type)), value(value) {}
 
   void *accept(ExpressionVisitor &visitor) override {
     return visitor.visit(*this);
@@ -154,8 +164,9 @@ struct Binop : public Expression {
   Expression *right;
   Operation operation;
 
-  Binop(Expression *left, Expression *right, Operation operation)
-      : left(left), right(right), operation(operation) {}
+  Binop(SourcePosition position, Expression *left, Expression *right,
+        Operation operation)
+      : Expression(position), left(left), right(right), operation(operation) {}
 
   ~Binop() override {
     delete left;
@@ -212,7 +223,8 @@ struct Condition : public Expression {
   Expression *then;
   Expression *otherwise;
 
-  Condition() = default;
+  Condition() = delete;
+  Condition(SourcePosition position) : Expression(position) {}
 
   ~Condition() override {
     delete condition;
@@ -240,8 +252,9 @@ struct Call : public Expression {
   Token name;
   std::vector<Expression *> arguments;
 
-  explicit Call(const Token &name, std::vector<Expression *> arguments)
-      : name(name), arguments(std::move(arguments)){};
+  explicit Call(SourcePosition position, const Token &name,
+                std::vector<Expression *> arguments)
+      : Expression(position), name(name), arguments(std::move(arguments)){};
 
   ~Call() override {
     for (auto argument : arguments) {
@@ -279,6 +292,8 @@ struct StatementVisitor {
 };
 
 struct Statement : public Node {
+  Statement() = delete;
+  Statement(SourcePosition position) : Node(position) {}
   virtual void accept(StatementVisitor &) = 0;
 };
 
@@ -288,8 +303,9 @@ struct VariableDeclaration : public Statement {
   Expression *initializer;
 
   VariableDeclaration() = delete;
-  VariableDeclaration(Token name, Token type, Expression *initializer)
-      : name(name), type(type), initializer(initializer) {}
+  VariableDeclaration(SourcePosition position, const Token &name,
+                      const Token &type, Expression *initializer)
+      : Statement(position), name(name), type(type), initializer(initializer) {}
 
   void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
@@ -305,7 +321,7 @@ struct ExpressionStatement : public Statement {
   Expression *expression;
 
   explicit ExpressionStatement(Expression *expression)
-      : expression(expression) {}
+      : Statement(expression->position), expression(expression) {}
 
   void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
@@ -315,14 +331,19 @@ struct ExpressionStatement : public Statement {
 };
 
 struct Parameter {
+  SourcePosition position;
   Token name;
   Token type;
 
-  Parameter(const Token &name, const Token &type) : name(name), type(type) {}
+  Parameter(const Token &name, const Token &type)
+      : position(name.position), name(name), type(type) {}
 };
 
 struct Block : public Statement {
   std::vector<Statement *> statements;
+
+  Block() = delete;
+  Block(SourcePosition position) : Statement(position) {}
 
   void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
@@ -342,6 +363,9 @@ struct FunctionPrototype : public Statement {
   Token name;
   std::vector<Parameter> parameter_list;
   Token return_type;
+
+  FunctionPrototype() = delete;
+  FunctionPrototype(SourcePosition position) : Statement(position) {}
 
   void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
@@ -363,6 +387,9 @@ struct Function : public Statement {
   FunctionPrototype *prototype;
   Block *body;
 
+  Function() = delete;
+  Function(SourcePosition position) : Statement(position) {}
+
   void accept(StatementVisitor &visitor) override { visitor.visit(*this); }
 
   [[nodiscard]] std::string describe() const override {
@@ -378,7 +405,8 @@ struct Return : public Statement {
   Expression *return_value;
 
   Return() = delete;
-  explicit Return(Expression *return_value) : return_value(return_value) {}
+  explicit Return(SourcePosition position, Expression *return_value)
+      : Statement(position), return_value(return_value) {}
 
   void accept(StatementVisitor &visitor) override {
     return visitor.visit(*this);

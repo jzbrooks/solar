@@ -3,6 +3,18 @@
 #include <string>
 #include <utility>
 
+struct SourcePosition {
+  size_t line;
+  size_t column;
+
+  SourcePosition() : line(0), column(0) {}
+  SourcePosition(size_t line, size_t column) : line(line), column(column) {}
+  SourcePosition(const SourcePosition &other) {
+    this->line = other.line;
+    this->column = other.column;
+  }
+};
+
 struct Token {
   enum class Kind : int {
     IDENTIFIER = 0,
@@ -50,13 +62,13 @@ struct Token {
 
   Kind kind;
   std::string lexeme;
-  int line;
+  SourcePosition position;
 
   Token() = default;
-  Token(Kind kind, std::string lexeme)
-      : kind(kind), lexeme(std::move(lexeme)) {}
-  Token(const Token &other)
-      : kind(other.kind), lexeme(other.lexeme), line(other.line){};
+  Token(Kind kind, std::string lexeme, const SourcePosition &position)
+      : kind(kind), lexeme(std::move(lexeme)),
+        position(position.line, position.column) {}
+  Token(const Token &other) = default;
 
   bool operator==(const Token &other) const {
     return kind == other.kind && lexeme == other.lexeme;
@@ -65,6 +77,10 @@ struct Token {
 
 static auto name(Token::Kind kind) -> const char * {
   switch (kind) {
+  case Token::Kind::VAR:
+    return "VAR\0";
+  case Token::Kind::COLON:
+    return "COLON\0";
   case Token::Kind::IDENTIFIER:
     return "IDENTIFIER\0";
   case Token::Kind::FUNC:

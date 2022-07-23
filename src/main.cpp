@@ -2,7 +2,6 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
-#include <sstream>
 #include <vector>
 
 #include "codegen.hpp"
@@ -20,9 +19,10 @@
 using namespace llvm;
 
 int main(int argc, char **argv) {
+  auto release = false;
   auto dump = false;
   std::string output;
-  std::vector<std::string> source_inputs;
+  std::vector<std::filesystem::path> source_inputs;
 
   // todo: more robust argument parsing
   //  - forbid --dump and --output both being specified, etc
@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
     std::string argument(argv[i]);
     if (argument == "--dump") {
       dump = true;
+    } else if (argument == "--release") {
+      release = true;
     } else if (argument == "--output") {
       if (i + 1 == argc) {
         errs() << "Expected an output name";
@@ -39,7 +41,7 @@ int main(int argc, char **argv) {
       i += 1;
       output = std::string(argv[i]);
     } else {
-      source_inputs.push_back(argument);
+      source_inputs.emplace_back(argument);
     }
   }
 
@@ -93,7 +95,15 @@ int main(int argc, char **argv) {
     auto program = parser.parse_program();
 
     CodeGen generator;
-    auto module = generator.compile_module(source_path.c_str(), program);
+    auto module = generator.compile_module(source_path, program, release);
+
+    module->setDataLayout(target_machine->createDataLayout());
+    module->setTargetTriple(target_triple);
+
+    std::filesystem::path object_file_path(source_path);
+    object_file_path.replace_extension("o");
+
+    linker_command << " " << object_file_path.string();
 
     if (dump) {
       module->print(outs(), nullptr);
@@ -101,11 +111,6 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    module->setDataLayout(target_machine->createDataLayout());
-    module->setTargetTriple(target_triple);
-
-    std::filesystem::path object_file_path(source_path);
-    object_file_path.replace_extension("o");
     std::error_code error_code;
     raw_fd_ostream dest(object_file_path.string(), error_code,
                         sys::fs::OF_None);
@@ -116,17 +121,14 @@ int main(int argc, char **argv) {
     }
 
     legacy::PassManager pass;
-    auto FileType = CGFT_ObjectFile;
-
-    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr,
+                                            CGFT_ObjectFile)) {
       errs() << "TheTargetMachine can't emit a file of this type";
       return 1;
     }
 
     pass.run(*module);
     dest.flush();
-
-    linker_command << " " << object_file_path.string();
   }
 
   linker_command << " -o";

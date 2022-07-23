@@ -24,17 +24,22 @@ TEST_CASE("add_two function is generated", "[codegen]") {
   const auto &function = module->getFunction("add_two");
   const auto &function_body = function->getEntryBlock();
 
-  REQUIRE(function->getReturnType()->getScalarSizeInBits() == 32);
   REQUIRE(function->getReturnType() ==
           llvm::Type::getInt32Ty(module->getContext()));
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "add") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
+
+  auto &instruction = function_body.back();
+  REQUIRE(isa<ReturnInst>(instruction));
+  REQUIRE(std::any_of(function_body.begin(), function_body.end(),
+                      [](const Instruction &instruction) {
+                        return isa<BinaryOperator>(instruction) &&
+                               instruction.getOpcode() == Instruction::Add;
+                      }));
 }
 
 TEST_CASE("local_vars function is generated", "[codegen]") {
-  auto program = parse_program("func local_vars(n: i32) -> i32 {"
-                               "var a: i32 = 1"
-                               "return a + n"
+  auto program = parse_program("func local_vars(n: i32) -> i32 {\n"
+                               "var a: i32 = 1\n"
+                               "return a + n\n"
                                "}");
 
   CodeGen codegen;
@@ -42,8 +47,12 @@ TEST_CASE("local_vars function is generated", "[codegen]") {
   const auto &function = module->getFunction("local_vars");
   const auto &function_body = function->getEntryBlock();
 
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "add") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
+  auto instruction = function_body.rbegin();
+  REQUIRE(isa<ReturnInst>(*instruction));
+  REQUIRE(std::any_of(function_body.begin(), function_body.end(),
+                      [](const Instruction &instruction) {
+                        return isa<AllocaInst>(instruction);
+                      }));
 }
 
 TEST_CASE("comparison greater than", "[codegen]") {
@@ -57,10 +66,32 @@ TEST_CASE("comparison greater than", "[codegen]") {
   const auto &function = module->getFunction("greater_than");
   const auto &function_body = function->getEntryBlock();
 
-  const auto compare_instruction = const_cast<CmpInst *>(
-      reinterpret_cast<const CmpInst *>(&function_body.getInstList().front()));
+  auto instruction = function_body.rbegin();
+  REQUIRE(isa<ReturnInst>(*instruction));
 
+  auto compare = std::find_if(
+      function_body.begin(), function_body.end(),
+      [](const Instruction &instruction) { return isa<CmpInst>(instruction); });
+
+  REQUIRE(compare != function_body.end());
+
+  auto compare_instruction = dyn_cast<CmpInst>(&(*compare));
   REQUIRE(compare_instruction->getPredicate() == llvm::CmpInst::ICMP_SGT);
-  REQUIRE(strcmp(function_body.front().getOpcodeName(), "icmp") == 0);
-  REQUIRE(strcmp(function_body.back().getOpcodeName(), "ret") == 0);
+}
+
+TEST_CASE("debug info is generated", "[codegen]") {
+  auto program = parse_program("func greater_than(n: i64) -> i32 {"
+                               "var a: bool = n > 3"
+                               "return a"
+                               "}");
+
+  CodeGen codegen;
+  auto module = codegen.compile_module("test_module", program);
+  const auto function = module->getFunction("greater_than");
+  const auto debug_subprogram = function->getSubprogram();
+
+  REQUIRE(debug_subprogram != nullptr);
+  REQUIRE(debug_subprogram->getLine() == 1);
+  REQUIRE(debug_subprogram->getName() == "greater_than");
+  REQUIRE(debug_subprogram->getType()->getTypeArray()[0]->getName() == "i32");
 }

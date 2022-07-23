@@ -69,7 +69,7 @@ Node *Parser::expression(Precedence precedence) {
 }
 
 Node *Parser::conditional() {
-  auto expression = new Condition;
+  auto expression = new Condition(previous.position);
 
   consume(Token::Kind::IF, "Expected an if keyword");
   expression->condition =
@@ -120,20 +120,23 @@ Node *Parser::number() { // NOLINT(readability-make-member-function-const)
     }
   }
 
-  return new LiteralValueExpression(type, value);
+  return new LiteralValueExpression(previous.position, type, value);
 }
 
-Node *Parser::variable() { return new Variable(previous); }
+Node *Parser::variable() { return new Variable(previous.position, previous); }
 
 Node *Parser::ret() {
+  auto position = current.position;
+
   consume(Token::Kind::RETURN, "Expected a return keyword");
 
   auto value = dynamic_cast<Expression *>(expression(Precedence::ASSIGNMENT));
 
-  return new Return(value);
+  return new Return(position, value);
 }
 
 Node *Parser::str() {
+  auto position = previous.position;
   auto string = previous.lexeme.substr(1, previous.lexeme.size() - 2);
   std::ostringstream string_with_replacements;
 
@@ -169,10 +172,11 @@ Node *Parser::str() {
     }
   }
 
-  return new StringLiteral(string_with_replacements.str());
+  return new StringLiteral(position, string_with_replacements.str());
 }
 
 Node *Parser::binary(Node *left) {
+  auto position = previous.position;
   Operation operation;
 
   switch (previous.kind) {
@@ -216,11 +220,12 @@ Node *Parser::binary(Node *left) {
   auto previousPrecedence = rules[previous.kind].precedence;
   auto right = dynamic_cast<Expression *>(
       expression((Precedence)((int)previousPrecedence + 1)));
-  return new Binop(dynamic_cast<Expression *>(left), right, operation);
+  return new Binop(position, dynamic_cast<Expression *>(left), right,
+                   operation);
 }
 
 Node *Parser::function() {
-  auto type = new FunctionPrototype;
+  auto type = new FunctionPrototype(current.position);
   consume(Token::Kind::FUNC, "Expected a func keyword");
   assert(current.kind == Token::Kind::IDENTIFIER);
   type->name = current;
@@ -242,7 +247,9 @@ Node *Parser::function() {
     type->parameter_list.emplace_back(parameter_name, parameter_type);
   }
   consume(Token::Kind::RPAREN, "Expected ')'");
-  auto return_type = Token(Token::Kind::IDENTIFIER, "Void");
+  // todo: there should probably be a concept of an implied token
+  //  that doesn't require a source position
+  auto return_type = Token(Token::Kind::IDENTIFIER, "Void", current.position);
   if (current.kind == Token::Kind::ARROW) {
     advance();
     return_type = current;
@@ -250,14 +257,14 @@ Node *Parser::function() {
   }
   type->return_type = return_type;
 
-  auto function = new Function;
+  auto function = new Function(type->position);
   function->prototype = type;
   function->body = (Block *)block();
   return function;
 }
 
 Node *Parser::block() {
-  auto block = new Block;
+  auto block = new Block(current.position);
   block->statements = vector<Statement *>();
   consume(Token::Kind::LBRACE, "Expected a '{'");
   while (current.kind != Token::Kind::RBRACE) {
@@ -306,10 +313,11 @@ Node *Parser::call(Node *left) {
 
   consume(Token::Kind::RPAREN, "Expected ')' at the end of an parameter list");
 
-  return new ast::Call(name->name, argument_expressions);
+  return new ast::Call(left->position, name->name, argument_expressions);
 }
 
 ast::Node *Parser::assignment() {
+  auto position = current.position;
   consume(Token::Kind::VAR, "Expected let for variable declaration");
   auto name = current;
   consume(Token::Kind::IDENTIFIER, "Expected a variable name");
@@ -321,7 +329,7 @@ ast::Node *Parser::assignment() {
   auto initializer =
       dynamic_cast<Expression *>(expression(Precedence::ASSIGNMENT));
 
-  return new VariableDeclaration(name, type, initializer);
+  return new VariableDeclaration(position, name, type, initializer);
 }
 
 ast::Node *Parser::grouping() {
@@ -352,7 +360,9 @@ void Parser::error(const string &message) { error(this->current, message); }
 
 void Parser::error(const Token &token, const string &message) {
   ostringstream builder;
-  builder << "[line " << token.line << "] Error at " << token.lexeme << ": "
-          << message << endl;
+
+  builder << "[position " << token.position.line << ':' << token.position.column
+          << "] Error at " << token.lexeme << ": " << message << endl;
+
   errors.emplace_back(builder.str());
 }
