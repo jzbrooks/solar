@@ -80,7 +80,6 @@ public:
 
 public:
   void visit(ast::VariableDeclaration &) override;
-  void visit(ast::FunctionPrototype &) override;
   void visit(ast::ExpressionStatement &) override;
   void visit(ast::Function &) override;
   void visit(ast::Block &) override;

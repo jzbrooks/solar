@@ -83,9 +83,8 @@ Module *CodeGen::compile_module(const filesystem::path &source_file,
       FunctionType::get(Type::getInt32Ty(module->getContext()),
                         ArrayRef<Type *>(args.data(), args.size()), true);
 
-  auto attributes = AttributeList::get(
-      module->getContext(), 1U,
-      SmallVector<Attribute::AttrKind, 1>{Attribute::NoAlias});
+  auto attributes =
+      AttributeList::get(module->getContext(), 1U, {Attribute::NoAlias});
   module->getOrInsertFunction("printf", printf_type, attributes);
 
   for (const auto &statement : program->statements) {
@@ -143,10 +142,6 @@ void StatementGenerator::visit(ast::VariableDeclaration &node) {
   }
 }
 
-void StatementGenerator::visit(ast::FunctionPrototype &node) {
-  // not implemented
-}
-
 void StatementGenerator::visit(ast::ExpressionStatement &node) {
   node.expression->accept(expressionGenerator);
 }
@@ -161,24 +156,22 @@ void StatementGenerator::visit(ast::Block &block) {
 }
 
 void StatementGenerator::visit(ast::Function &function) {
-  // todo: check for prototype in module
-  std::vector<Type *> argument_types;
-  for (const auto &parameter : function.prototype->parameter_list) {
+  SmallVector<Type *, 8> argument_types;
+  for (const auto &parameter : function.prototype.parameter_list) {
     argument_types.push_back(
         llvm_type_for(parameter.type, module->getContext()));
   }
 
   auto return_type =
-      llvm_type_for(function.prototype->return_type, module->getContext());
+      llvm_type_for(function.prototype.return_type, module->getContext());
   if (!return_type) {
     return_type = Type::getVoidTy(module->getContext());
   }
 
-  auto type = FunctionType::get(
-      return_type,
-      ArrayRef<Type *>(argument_types.data(), argument_types.size()), false);
+  auto type = FunctionType::get(return_type, argument_types, false);
+
   auto func = Function::Create(type, GlobalValue::LinkageTypes::ExternalLinkage,
-                               function.prototype->name.lexeme, module);
+                               function.prototype.name.lexeme, module);
 
   if (debug_info_generator) {
     debug_info_generator->attach_debug_info(function, func);
@@ -190,14 +183,14 @@ void StatementGenerator::visit(ast::Function &function) {
   // will run past them when breaking on a function)
   builder->SetCurrentDebugLocation(DebugLoc());
 
-  assert(function.prototype->parameter_list.size() == func->arg_size());
+  assert(function.prototype.parameter_list.size() == func->arg_size());
 
   auto entry = BasicBlock::Create(module->getContext(), "entry", func);
   builder->SetInsertPoint(entry);
 
   named_values->clear();
-  for (auto i = 0; i < function.prototype->parameter_list.size(); ++i) {
-    const auto &parameter = function.prototype->parameter_list[i];
+  for (auto i = 0; i < function.prototype.parameter_list.size(); ++i) {
+    const auto &parameter = function.prototype.parameter_list[i];
     const auto &arg = func->getArg(i);
     arg->setName(parameter.name.lexeme);
 
@@ -461,9 +454,9 @@ void DebugInfoGenerator::emit_location(const ast::Node *node) {
 void DebugInfoGenerator::attach_debug_info(const ast::Function &ast_function,
                                            Function *llvm_function) {
   std::vector<Metadata *> func_metadata;
-  func_metadata.push_back(get_type(ast_function.prototype->return_type));
+  func_metadata.push_back(get_type(ast_function.prototype.return_type));
 
-  for (const auto &arg : ast_function.prototype->parameter_list) {
+  for (const auto &arg : ast_function.prototype.parameter_list) {
     func_metadata.push_back(get_type(arg.type));
   }
 
@@ -475,7 +468,7 @@ void DebugInfoGenerator::attach_debug_info(const ast::Function &ast_function,
   auto file = compile_unit->getFile();
 
   auto subprogram = debug_info_builder->createFunction(
-      file, ast_function.prototype->name.lexeme, StringRef(), file,
+      file, ast_function.prototype.name.lexeme, StringRef(), file,
       ast_function.position.line, subroutine_type, 0, DINode::FlagPrototyped,
       DISubprogram::SPFlagDefinition);
 

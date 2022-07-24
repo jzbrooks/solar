@@ -225,15 +225,17 @@ Node *Parser::binary(Node *left) {
 }
 
 Node *Parser::function() {
-  auto type = new FunctionPrototype(current.position);
+  FunctionPrototype type;
+  const auto &position = current.position;
+
   consume(Token::Kind::FUNC, "Expected a func keyword");
   assert(current.kind == Token::Kind::IDENTIFIER);
-  type->name = current;
-  type->parameter_list = vector<Parameter>();
+  type.name = current;
+  type.parameter_list = vector<Parameter>();
   advance();
   consume(Token::Kind::LPAREN, "Expected '('");
   while (current.kind != Token::Kind::RPAREN) {
-    if (!type->parameter_list.empty() && current.kind == Token::Kind::COMMA)
+    if (!type.parameter_list.empty() && current.kind == Token::Kind::COMMA)
       advance();
 
     auto parameter_name = current;
@@ -244,7 +246,7 @@ Node *Parser::function() {
     auto parameter_type = current;
     consume(Token::Kind::IDENTIFIER,
             "Expected a type name for a function parameter");
-    type->parameter_list.emplace_back(parameter_name, parameter_type);
+    type.parameter_list.emplace_back(parameter_name, parameter_type);
   }
   consume(Token::Kind::RPAREN, "Expected ')'");
   // todo: there should probably be a concept of an implied token
@@ -255,9 +257,9 @@ Node *Parser::function() {
     return_type = current;
     consume(Token::Kind::IDENTIFIER, "Expected a return type");
   }
-  type->return_type = return_type;
+  type.return_type = return_type;
 
-  auto function = new Function(type->position);
+  auto function = new Function(position);
   function->prototype = type;
   function->body = (Block *)block();
   return function;
