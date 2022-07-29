@@ -31,7 +31,7 @@ public:
   void attach_debug_info(const ast::VariableDeclaration &, llvm::AllocaInst *,
                          llvm::DISubprogram *);
 
-  llvm::DIBasicType *get_type(const Token &);
+  llvm::DIBasicType *get_type(const ast::TypeInfo &);
   void emit_location(const ast::Node *node);
   void finalize() const;
 };

@@ -49,6 +49,8 @@ class Parser {
   ast::Node *assignment();
   ast::Node *grouping();
 
+  ast::TypeInfo type();
+
   void advance();
   void consume(Token::Kind kind, const std::string &message);
   void error(const std::string &message);

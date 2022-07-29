@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include "token.hpp"
@@ -22,18 +23,49 @@ struct Block;
 struct Function;
 struct Return;
 
-struct Type {
-  Token name;
-
-  struct Primitive {
-    static Token BOOL;
-    static Token INT32;
-    static Token INT64;
-    static Token UINT32;
-    static Token UINT64;
-    static Token FLOAT32;
-    static Token FLOAT64;
+struct TypeInfo {
+  enum class Type {
+    UNINITIALIZED = 0,
+    VOID,
+    BOOL,
+    INTEGER,
+    FLOAT,
   };
+
+  Type type = Type::UNINITIALIZED;
+
+  bool is_signed = false;
+  size_t size = -1;
+
+  [[nodiscard]] std::string describe() const {
+    std::ostringstream builder;
+
+    if (type == Type::INTEGER && !is_signed)
+      builder << "u";
+
+    builder << TypeInfo::type_name(type);
+
+    if (type != Type::BOOL)
+      builder << size;
+
+    return builder.str();
+  }
+
+  [[nodiscard]] static auto type_name(ast::TypeInfo::Type type) -> const
+      char * {
+    switch (type) {
+    case ast::TypeInfo::Type::UNINITIALIZED:
+      return "uninitialized\0";
+    case ast::TypeInfo::Type::BOOL:
+      return "bool\0";
+    case ast::TypeInfo::Type::INTEGER:
+      return "int\0";
+    case ast::TypeInfo::Type::FLOAT:
+      return "float\0";
+    default:
+      return "UNKNOWN\0";
+    }
+  }
 };
 
 union Value {
@@ -64,7 +96,7 @@ struct Node {
 
   Node() = delete;
   explicit Node(const SourcePosition &position) : position(position) {}
-  virtual ~Node() {}
+  virtual ~Node() = default;
 
   [[nodiscard]] virtual std::string describe() const = 0;
 };
@@ -122,12 +154,13 @@ struct StringLiteral : public Expression {
 };
 
 struct LiteralValueExpression : public Expression {
-  Type type;
+  TypeInfo type_info;
   Value value;
 
   LiteralValueExpression() = delete;
-  LiteralValueExpression(const SourcePosition &position, Type type, Value value)
-      : Expression(position), type(std::move(type)), value(value) {}
+  LiteralValueExpression(const SourcePosition &position, TypeInfo type,
+                         Value value)
+      : Expression(position), type_info(type), value(value) {}
 
   void *accept(ExpressionVisitor &visitor) override {
     return visitor.visit(*this);
@@ -136,22 +169,36 @@ struct LiteralValueExpression : public Expression {
   [[nodiscard]] std::string describe() const override {
     std::ostringstream builder;
 
-    builder << "(" << type.name.lexeme << "<";
-
-    if (type.name.lexeme == Type::Primitive::BOOL.lexeme) {
+    builder << "(" << type_info.describe() << "<";
+    switch (type_info.type) {
+    case TypeInfo::Type::BOOL:
       builder << value.boolean;
-    } else if (type.name.lexeme == Type::Primitive::INT32.lexeme) {
-      builder << value.int32;
-    } else if (type.name.lexeme == Type::Primitive::INT64.lexeme) {
-      builder << value.int64;
-    } else if (type.name.lexeme == Type::Primitive::FLOAT32.lexeme) {
-      builder << value.float32;
-    } else if (type.name.lexeme == Type::Primitive::FLOAT64.lexeme) {
-      builder << value.float64;
-    } else if (type.name.lexeme == Type::Primitive::UINT32.lexeme) {
-      builder << value.uint32;
-    } else if (type.name.lexeme == Type::Primitive::UINT64.lexeme) {
-      builder << value.uint64;
+      break;
+    case TypeInfo::Type::INTEGER:
+      if (!type_info.is_signed && type_info.size == 32) {
+        builder << value.int32;
+      } else if (!type_info.is_signed && type_info.size == 32) {
+        builder << value.uint32;
+      } else if (type_info.is_signed && type_info.size == 64) {
+        builder << value.int64;
+      } else if (!type_info.is_signed && type_info.size == 64) {
+        builder << value.uint64;
+      } else {
+        assert(0);
+      }
+      break;
+    case TypeInfo::Type::FLOAT:
+      if (type_info.size == 64) {
+        builder << value.float64;
+      } else if (type_info.size == 32) {
+        builder << value.float32;
+      } else {
+        assert(0);
+      }
+      break;
+    default:
+      assert(0);
+      break;
     }
 
     builder << ">)";
@@ -298,13 +345,14 @@ struct Statement : public Node {
 
 struct VariableDeclaration : public Statement {
   Token name;
-  Token type;
+  TypeInfo type_info;
   Expression *initializer;
 
   VariableDeclaration() = delete;
   VariableDeclaration(const SourcePosition &position, const Token &name,
-                      const Token &type, Expression *initializer)
-      : Statement(position), name(name), type(type), initializer(initializer) {}
+                      TypeInfo type, Expression *initializer)
+      : Statement(position), name(name), type_info(type),
+        initializer(initializer) {}
 
   ~VariableDeclaration() override { delete initializer; }
 
@@ -312,8 +360,10 @@ struct VariableDeclaration : public Statement {
 
   [[nodiscard]] std::string describe() const override {
     std::ostringstream builder;
-    builder << "(var-decl " << type.lexeme << "<" << name.lexeme << "> "
-            << initializer->describe() << ")";
+
+    builder << "(var-decl " << type_info.describe() << "<" << name.lexeme
+            << "> " << initializer->describe() << ")";
+
     return builder.str();
   }
 };
@@ -335,10 +385,10 @@ struct ExpressionStatement : public Statement {
 struct Parameter {
   SourcePosition position;
   Token name;
-  Token type;
+  TypeInfo type_info;
 
-  Parameter(const Token &name, const Token &type)
-      : position(name.position), name(name), type(type) {}
+  Parameter(const Token &name, const TypeInfo &type)
+      : position(name.position), name(name), type_info(type) {}
 };
 
 struct Block : public Statement {
@@ -369,13 +419,13 @@ struct Block : public Statement {
 struct FunctionPrototype {
   Token name;
   std::vector<Parameter> parameter_list;
-  Token return_type;
+  TypeInfo return_type_info;
 
   [[nodiscard]] std::string describe() const {
     std::ostringstream builder;
     builder << "(fn-type " << name.lexeme << "(";
     for (const auto &parameter : parameter_list) {
-      builder << parameter.name.lexeme << ":" << parameter.type.lexeme;
+      builder << parameter.name.lexeme << ":" << parameter.type_info.describe();
       if (&parameter != &parameter_list.back())
         builder << ", ";
     }

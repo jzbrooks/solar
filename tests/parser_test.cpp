@@ -8,7 +8,7 @@ TEST_CASE("Parse integer expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(i64<1>)");
+  REQUIRE(statement->expression->describe() == "(int64<1>)");
 }
 
 TEST_CASE("Parse float expression. ", "[parser]") {
@@ -17,7 +17,7 @@ TEST_CASE("Parse float expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(f64<1>)");
+  REQUIRE(statement->expression->describe() == "(float64<1>)");
 }
 
 TEST_CASE("Parse literal qualifier expression. ", "[parser]") {
@@ -26,7 +26,7 @@ TEST_CASE("Parse literal qualifier expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(u32<1>)");
+  REQUIRE(statement->expression->describe() == "(uint32<1>)");
 }
 
 TEST_CASE("Parse integer addition expression. ", "[parser]") {
@@ -35,7 +35,7 @@ TEST_CASE("Parse integer addition expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(+ (i64<1>) (i64<2>))");
+  REQUIRE(statement->expression->describe() == "(+ (int64<1>) (int64<2>))");
 }
 
 TEST_CASE("Parse integer subtraction expression. ", "[parser]") {
@@ -44,7 +44,7 @@ TEST_CASE("Parse integer subtraction expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(- (i64<1>) (i64<2>))");
+  REQUIRE(statement->expression->describe() == "(- (int64<1>) (int64<2>))");
 }
 
 TEST_CASE("Parse integer multiplication expression. ", "[parser]") {
@@ -53,7 +53,7 @@ TEST_CASE("Parse integer multiplication expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(* (i64<1>) (i64<2>))");
+  REQUIRE(statement->expression->describe() == "(* (int64<1>) (int64<2>))");
 }
 
 TEST_CASE("Parse integer division expression. ", "[parser]") {
@@ -62,7 +62,7 @@ TEST_CASE("Parse integer division expression. ", "[parser]") {
   Parser parser(&lexer);
   auto program = parser.parse_program();
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(/ (i64<1>) (i64<2>))");
+  REQUIRE(statement->expression->describe() == "(/ (int64<1>) (int64<2>))");
 }
 
 TEST_CASE("Parse multiple integer addition expression. ", "[parser]") {
@@ -74,7 +74,7 @@ TEST_CASE("Parse multiple integer addition expression. ", "[parser]") {
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
   REQUIRE(statement->expression->describe() ==
-          "(+ (+ (i64<1>) (i64<2>)) (i64<3>))");
+          "(+ (+ (int64<1>) (int64<2>)) (int64<3>))");
 }
 
 TEST_CASE("Parse term/factor precedence expression. ", "[parser]") {
@@ -86,7 +86,7 @@ TEST_CASE("Parse term/factor precedence expression. ", "[parser]") {
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
   REQUIRE(statement->expression->describe() ==
-          "(+ (i64<1>) (/ (i64<2>) (i64<3>)))");
+          "(+ (int64<1>) (/ (int64<2>) (int64<3>)))");
 }
 
 TEST_CASE("Parse expression grouping. ", "[parser]") {
@@ -98,7 +98,7 @@ TEST_CASE("Parse expression grouping. ", "[parser]") {
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
   REQUIRE(statement->expression->describe() ==
-          "(/ (+ (i64<1>) (i64<2>)) (i64<3>))");
+          "(/ (+ (int64<1>) (int64<2>)) (int64<3>))");
 }
 
 TEST_CASE("Parse comparison without else. ", "[parser]") {
@@ -109,7 +109,7 @@ TEST_CASE("Parse comparison without else. ", "[parser]") {
   auto program = parser.parse_program();
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() == "(== (i64<1>) (i64<3>))");
+  REQUIRE(statement->expression->describe() == "(== (int64<1>) (int64<3>))");
 }
 
 TEST_CASE("Parse condition expression. ", "[parser]") {
@@ -121,8 +121,9 @@ TEST_CASE("Parse condition expression. ", "[parser]") {
   auto program = parser.parse_program();
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
-  REQUIRE(statement->expression->describe() ==
-          "(if (< (i64<1>) (i64<3>)) then (i64<3>) otherwise (i64<0>))");
+  REQUIRE(
+      statement->expression->describe() ==
+      "(if (< (int64<1>) (int64<3>)) then (int64<3>) otherwise (int64<0>))");
 }
 
 TEST_CASE("Parse condition without else. ", "[parser]") {
@@ -135,7 +136,7 @@ TEST_CASE("Parse condition without else. ", "[parser]") {
 
   auto statement = (ast::ExpressionStatement *)program->statements.front();
   REQUIRE(statement->expression->describe() ==
-          "(if (!= (i64<1>) (i64<3>)) then (i64<3>))");
+          "(if (!= (int64<1>) (int64<3>)) then (int64<3>))");
 }
 
 TEST_CASE("Parse functions. ", "[parser]") {
@@ -148,7 +149,7 @@ TEST_CASE("Parse functions. ", "[parser]") {
 
   auto statement = (ast::Function *)program->statements.front();
   REQUIRE(statement->describe() ==
-          "(fn-def (fn-type add()  (block \n(+ (i64<1>) (i64<2>))\n))");
+          "(fn-def (fn-type add()  (block \n(+ (int64<1>) (int64<2>))\n))");
 }
 
 TEST_CASE("Parse functions with arguments ", "[parser]") {
@@ -162,9 +163,8 @@ TEST_CASE("Parse functions with arguments ", "[parser]") {
   auto program = parser.parse_program();
 
   auto statement = (ast::Function *)program->statements.front();
-  REQUIRE(
-      statement->describe() ==
-      "(fn-def (fn-type add(a:i32, b:i32)  (block \n(+ (var a) (var b))\n))");
+  REQUIRE(statement->describe() == "(fn-def (fn-type add(a:int32, b:int32)  "
+                                   "(block \n(+ (var a) (var b))\n))");
 }
 
 TEST_CASE("Parse variable declarations. ", "[parser]") {
@@ -176,7 +176,7 @@ TEST_CASE("Parse variable declarations. ", "[parser]") {
   auto program = parser.parse_program();
 
   auto statement = program->statements.front();
-  REQUIRE(statement->describe() == "(var-decl i32<count> (i64<0>))");
+  REQUIRE(statement->describe() == "(var-decl int32<count> (int64<0>))");
 }
 
 TEST_CASE("Parse string literals. ", "[parser]") {

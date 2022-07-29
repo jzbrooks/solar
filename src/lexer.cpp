@@ -78,6 +78,12 @@ Token Lexer::next() {
   case '}':
     token = {Token::Kind::RBRACE, extractLexeme(1), position};
     break;
+  case '[':
+    token = {Token::Kind::LBRACKET, extractLexeme(1), position};
+    break;
+  case ']':
+    token = {Token::Kind::RBRACKET, extractLexeme(1), position};
+    break;
   case ',':
     token = {Token::Kind::COMMA, extractLexeme(1), position};
     break;

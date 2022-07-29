@@ -37,6 +37,8 @@ struct Token {
     RPAREN,
     LBRACE,
     RBRACE,
+    LBRACKET,
+    RBRACKET,
     COMMA,
     COLON,
 
@@ -105,6 +107,10 @@ static auto name(Token::Kind kind) -> const char * {
     return "LBRACE\0";
   case Token::Kind::RBRACE:
     return "RBRACE\0";
+  case Token::Kind::LBRACKET:
+    return "LBRACKET\0";
+  case Token::Kind::RBRACKET:
+    return "RBRACKET\0";
   case Token::Kind::ARROW:
     return "ARROW\0";
   case Token::Kind::LESS:

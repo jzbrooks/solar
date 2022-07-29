@@ -92,30 +92,34 @@ Node *Parser::conditional() {
 }
 
 Node *Parser::number() { // NOLINT(readability-make-member-function-const)
-  Type type;
+  TypeInfo type;
   Value value;
 
   auto lexeme = previous.lexeme;
   if (lexeme.find('.') != string::npos) {
     if (lexeme.ends_with("f32")) {
-      type = Type{Type::Primitive::FLOAT32};
+      type = TypeInfo{.type = ast::TypeInfo::Type::FLOAT, .size = 32};
       value = Value{.float32 = stof(lexeme)};
     } else {
-      type = Type{Type::Primitive::FLOAT64};
+      type = TypeInfo{.type = ast::TypeInfo::Type::FLOAT, .size = 64};
       value = Value{.float64 = stod(lexeme)};
     }
   } else {
     if (lexeme.ends_with("i32")) {
-      type = Type{Type::Primitive::INT32};
+      type = TypeInfo{
+          .type = ast::TypeInfo::Type::INTEGER, .is_signed = true, .size = 32};
       value = Value{.int32 = stoi(lexeme)};
     } else if (lexeme.ends_with("u32")) {
-      type = Type{Type::Primitive::UINT32};
+      type = TypeInfo{
+          .type = ast::TypeInfo::Type::INTEGER, .is_signed = false, .size = 32};
       value = Value{.uint32 = (unsigned int)stoul(lexeme)};
     } else if (lexeme.ends_with("u64")) {
-      type = Type{Type::Primitive::UINT64};
+      type = TypeInfo{
+          .type = ast::TypeInfo::Type::INTEGER, .is_signed = false, .size = 64};
       value = Value{.uint64 = stoul(lexeme)};
     } else {
-      type = Type{Type::Primitive::INT64};
+      type = TypeInfo{
+          .type = ast::TypeInfo::Type::INTEGER, .is_signed = true, .size = 64};
       value = Value{.int64 = stol(lexeme)};
     }
   }
@@ -243,7 +247,7 @@ Node *Parser::function() {
             "Expected a name for a function parameter");
     consume(Token::Kind::COLON,
             "Expected a colon after function parameter name");
-    auto parameter_type = current;
+    auto parameter_type = this->type();
     consume(Token::Kind::IDENTIFIER,
             "Expected a type name for a function parameter");
     type.parameter_list.emplace_back(parameter_name, parameter_type);
@@ -251,13 +255,13 @@ Node *Parser::function() {
   consume(Token::Kind::RPAREN, "Expected ')'");
   // todo: there should probably be a concept of an implied token
   //  that doesn't require a source position
-  auto return_type = Token(Token::Kind::IDENTIFIER, "Void", current.position);
+  auto return_type = TypeInfo{TypeInfo::Type::VOID};
   if (current.kind == Token::Kind::ARROW) {
     advance();
-    return_type = current;
+    return_type = this->type();
     consume(Token::Kind::IDENTIFIER, "Expected a return type");
   }
-  type.return_type = return_type;
+  type.return_type_info = return_type;
 
   auto function = new Function(position);
   function->prototype = type;
@@ -325,7 +329,7 @@ ast::Node *Parser::assignment() {
   consume(Token::Kind::IDENTIFIER, "Expected a variable name");
   consume(Token::Kind::COLON,
           "Expected a colon between variable name and type");
-  auto type = current;
+  auto type = this->type();
   consume(Token::Kind::IDENTIFIER, "Expected a type name");
   consume(Token::Kind::ASSIGN, "Expected an initializer");
   auto initializer =
@@ -338,6 +342,42 @@ ast::Node *Parser::grouping() {
   auto expr = expression(Precedence::ASSIGNMENT);
   consume(Token::Kind::RPAREN, "Expected ')' after expression");
   return expr;
+}
+
+ast::TypeInfo Parser::type() {
+  TypeInfo type_info;
+
+  auto identifier = current;
+  consume(Token::Kind::IDENTIFIER, "Expected a type_info name.");
+
+  if (identifier.lexeme == "bool") {
+    type_info.type = TypeInfo::Type::BOOL;
+    type_info.size = 1;
+  } else if (identifier.lexeme == "i64") {
+    type_info.type = TypeInfo::Type::INTEGER;
+    type_info.is_signed = true;
+    type_info.size = 64;
+  } else if (identifier.lexeme == "u64") {
+    type_info.type = TypeInfo::Type::INTEGER;
+    type_info.is_signed = false;
+    type_info.size = 64;
+  } else if (identifier.lexeme == "i32") {
+    type_info.type = TypeInfo::Type::INTEGER;
+    type_info.is_signed = true;
+    type_info.size = 32;
+  } else if (identifier.lexeme == "u32") {
+    type_info.type = TypeInfo::Type::INTEGER;
+    type_info.is_signed = false;
+    type_info.size = 32;
+  } else if (identifier.lexeme == "f64") {
+    type_info.type = TypeInfo::Type::FLOAT;
+    type_info.size = 64;
+  } else if (identifier.lexeme == "f32") {
+    type_info.type = TypeInfo::Type::FLOAT;
+    type_info.size = 32;
+  }
+
+  return type_info;
 }
 
 void Parser::advance() {

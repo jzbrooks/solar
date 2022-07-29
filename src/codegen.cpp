@@ -19,19 +19,22 @@
 using namespace llvm;
 using namespace std;
 
-static Type *llvm_type_for(const Token &type_token, LLVMContext &context) {
-  if (type_token == ast::Type::Primitive::INT64 ||
-      type_token == ast::Type::Primitive::UINT64) {
-    return Type::getInt64Ty(context);
-  } else if (type_token == ast::Type::Primitive::INT32 ||
-             type_token == ast::Type::Primitive::UINT32) {
-    return Type::getInt32Ty(context);
-  } else if (type_token == ast::Type::Primitive::FLOAT64) {
-    return Type::getDoubleTy(context);
-  } else if (type_token == ast::Type::Primitive::FLOAT32) {
-    return Type::getFloatTy(context);
-  } else if (type_token == ast::Type::Primitive::BOOL) {
+static Type *llvm_type_for(const ast::TypeInfo &type_info,
+                           LLVMContext &context) {
+  switch (type_info.type) {
+  case ast::TypeInfo::Type::BOOL:
     return Type::getInt1Ty(context);
+  case ast::TypeInfo::Type::INTEGER:
+    return type_info.size == 32 ? Type::getInt32Ty(context)
+                                : Type::getInt64Ty(context);
+  case ast::TypeInfo::Type::FLOAT: {
+    return type_info.size == 32 ? Type::getFloatTy(context)
+                                : Type::getDoubleTy(context);
+    break;
+  }
+  default:
+    assert(0);
+    break;
   }
 
   assert(0); // todo: user defined types
@@ -121,7 +124,7 @@ StatementGenerator::StatementGenerator(
 }
 
 void StatementGenerator::visit(ast::VariableDeclaration &node) {
-  const auto type = llvm_type_for(node.type, module->getContext());
+  const auto type = llvm_type_for(node.type_info, module->getContext());
   const auto function = builder->GetInsertBlock()->getParent();
   IRBuilder<> temp_builder(&function->getEntryBlock(),
                            function->getEntryBlock().begin());
@@ -159,11 +162,11 @@ void StatementGenerator::visit(ast::Function &function) {
   SmallVector<Type *, 8> argument_types;
   for (const auto &parameter : function.prototype.parameter_list) {
     argument_types.push_back(
-        llvm_type_for(parameter.type, module->getContext()));
+        llvm_type_for(parameter.type_info, module->getContext()));
   }
 
   auto return_type =
-      llvm_type_for(function.prototype.return_type, module->getContext());
+      llvm_type_for(function.prototype.return_type_info, module->getContext());
   if (!return_type) {
     return_type = Type::getVoidTy(module->getContext());
   }
@@ -239,7 +242,7 @@ void *ExpressionGenerator::visit(ast::LiteralValueExpression &expression) {
   if (debug_info_generator)
     debug_info_generator->emit_location(&expression);
 
-  const auto type = llvm_type_for(expression.type.name, module->getContext());
+  const auto type = llvm_type_for(expression.type_info, module->getContext());
   const auto size = type->getScalarSizeInBits();
 
   switch (type->getTypeID()) {
@@ -454,10 +457,10 @@ void DebugInfoGenerator::emit_location(const ast::Node *node) {
 void DebugInfoGenerator::attach_debug_info(const ast::Function &ast_function,
                                            Function *llvm_function) {
   std::vector<Metadata *> func_metadata;
-  func_metadata.push_back(get_type(ast_function.prototype.return_type));
+  func_metadata.push_back(get_type(ast_function.prototype.return_type_info));
 
   for (const auto &arg : ast_function.prototype.parameter_list) {
-    func_metadata.push_back(get_type(arg.type));
+    func_metadata.push_back(get_type(arg.type_info));
   }
 
   auto parameter_types =
@@ -481,7 +484,7 @@ void DebugInfoGenerator::attach_debug_info(const ast::Parameter &parameter,
 
   auto arg_debug_info = debug_info_builder->createParameterVariable(
       subprogram, arg->getName(), arg->getArgNo(), subprogram->getFile(),
-      parameter.position.line, get_type(parameter.type), true);
+      parameter.position.line, get_type(parameter.type_info), true);
 
   debug_info_builder->insertDeclare(
       alloca, arg_debug_info, debug_info_builder->createExpression(),
@@ -496,7 +499,7 @@ void DebugInfoGenerator::attach_debug_info(const ast::VariableDeclaration &decl,
 
   auto variable_debug_info = debug_info_builder->createAutoVariable(
       subprogram->getScope(), decl.name.lexeme, subprogram->getFile(),
-      decl.position.line, get_type(decl.type), true);
+      decl.position.line, get_type(decl.type_info), true);
 
   auto location = DILocation::get(subprogram->getContext(), decl.position.line,
                                   decl.position.column, subprogram);
@@ -506,25 +509,34 @@ void DebugInfoGenerator::attach_debug_info(const ast::VariableDeclaration &decl,
                                     location, ir_builder->GetInsertBlock());
 }
 
-DIBasicType *DebugInfoGenerator::get_type(const Token &type_token) {
+DIBasicType *DebugInfoGenerator::get_type(const ast::TypeInfo &type_info) {
   // todo: maybe cache these?
-  if (type_token == ast::Type::Primitive::INT64) {
-    return debug_info_builder->createBasicType("i64", 64, dwarf::DW_ATE_signed);
-  } else if (type_token == ast::Type::Primitive::UINT64) {
-    return debug_info_builder->createBasicType("u64", 64,
-                                               dwarf::DW_ATE_unsigned);
-  } else if (type_token == ast::Type::Primitive::INT32) {
-    return debug_info_builder->createBasicType("i32", 32, dwarf::DW_ATE_signed);
-  } else if (type_token == ast::Type::Primitive::UINT32) {
-    return debug_info_builder->createBasicType("u32", 32,
-                                               dwarf::DW_ATE_unsigned);
-  } else if (type_token == ast::Type::Primitive::FLOAT64) {
-    return debug_info_builder->createBasicType("f64", 64, dwarf::DW_ATE_float);
-  } else if (type_token == ast::Type::Primitive::FLOAT32) {
-    return debug_info_builder->createBasicType("f32", 32, dwarf::DW_ATE_float);
-  } else if (type_token == ast::Type::Primitive::BOOL) {
+  switch (type_info.type) {
+  case ast::TypeInfo::Type::BOOL:
     return debug_info_builder->createBasicType("bool", 1,
                                                dwarf::DW_ATE_boolean);
+    break;
+  case ast::TypeInfo::Type::INTEGER: {
+    if (type_info.is_signed) {
+      auto name = type_info.size == 32 ? "i32" : "i64";
+      return debug_info_builder->createBasicType(name, type_info.size,
+                                                 dwarf::DW_ATE_signed);
+    } else {
+      auto name = type_info.size == 32 ? "u32" : "u64";
+      return debug_info_builder->createBasicType(name, type_info.size,
+                                                 dwarf::DW_ATE_unsigned);
+    }
+    break;
+  }
+  case ast::TypeInfo::Type::FLOAT: {
+    auto name = type_info.size == 32 ? "f32" : "f64";
+    return debug_info_builder->createBasicType(name, type_info.size,
+                                               dwarf::DW_ATE_float);
+    break;
+  }
+  default:
+    assert(0);
+    break;
   }
 
   assert(0); // todo: user defined types
